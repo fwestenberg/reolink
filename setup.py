@@ -13,10 +13,7 @@ setup(
   install_requires=[
           'ffmpeg',
           'requests',
-          'aiohttp',
-          'hashlib',
-          'base64',
-          're',
+          'aiohttp'
       ],
   classifiers=[
     'Development Status :: 4 - Beta',
