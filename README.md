@@ -1,7 +1,7 @@
 <h1 class="code-line" data-line-start=0 data-line-end=1 ><a id="Reolink_Python_package_0"></a>Reolink Python package</h1>
 <p class="has-line-data" data-line-start="2" data-line-end="3">This is a package implementing the Reolink IP camera API. Also it’s providing a way to subscribe to Reolink events, so real-time events can be received on a webhook.</p>
 <h3 class="code-line" data-line-start=4 data-line-end=5 ><a id="Usage_4"></a>Usage</h3>
-<pre><code class="has-line-data" data-line-start="7" data-line-end="39" class="language-python">api = cameraApi.ReolinkApi(<span class="hljs-string">'192.168.1.10'</span>, <span class="hljs-number">80</span>, <span class="hljs-string">'user'</span>, <span class="hljs-string">'mypassword'</span>)
+<pre><code class="has-line-data" data-line-start="7" data-line-end="39" class="language-python">api = cameraApi.api(<span class="hljs-string">'192.168.1.10'</span>, <span class="hljs-number">80</span>, <span class="hljs-string">'user'</span>, <span class="hljs-string">'mypassword'</span>)
 
 <span class="hljs-comment"># get settings, like ports etc.:</span>
 <span class="hljs-keyword">await</span> api.get_settings()
