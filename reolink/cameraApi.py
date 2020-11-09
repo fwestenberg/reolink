@@ -43,6 +43,7 @@ class api(object):
         self._isp_settings = None
         self._ftp_settings = None
         self._enc_settings = None
+        self._ptzpresets_settings = None
         self._users = None
         self._local_link = None
         self._stream = DEFAULT_STREAM
