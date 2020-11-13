@@ -9,12 +9,13 @@ import requests
 
 import aiohttp
 
-MANUFACTURER = 'Reolink'
+MANUFACTURER = "Reolink"
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class api(object):
     def __init__(self, host, port, username, password):
@@ -148,13 +149,11 @@ class api(object):
 
     @property
     def motion_detection_state(self):
-        """Camera motion detection setting status."""
         return self._motion_detection_state
 
     @property
     def session_active(self):
-        if (self._token is not None 
-        and self._leaseTime > datetime.now()):
+        if self._token is not None and self._leaseTime > datetime.now():
             return True
         else:
             self._token = None
@@ -164,7 +163,7 @@ class api(object):
     async def clear_token(self):
         self._token = None
         self._leaseTime = None
-    
+
     async def get_switchCapabilities(self):
         capabilities = []
         if len(self._ptzpresets) != 0:
@@ -177,13 +176,13 @@ class api(object):
             capabilities.append("irLights")
 
         if self._recording_state is not None:
-            capabilities.append("recording")   
+            capabilities.append("recording")
 
         if self._motion_detection_state is not None:
             capabilities.append("motionDetection")
 
         if self._dayNight_state is not None:
-            capabilities.append("dayNight")   
+            capabilities.append("dayNight")
 
         if self._email_state is not None:
             capabilities.append("email")
@@ -197,14 +196,20 @@ class api(object):
         return capabilities
 
     async def get_states(self):
-        body = [{"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
+        body = [
+            {"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEnc", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIsp", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIrLights", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetPtzPreset", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetAlarm","action":1,"param":{"Alarm":{"channel": self._channel ,"type":"md"}}}]
+            {
+                "cmd": "GetAlarm",
+                "action": 1,
+                "param": {"Alarm": {"channel": self._channel, "type": "md"}},
+            },
+        ]
 
         response = await self.send(body)
 
@@ -218,10 +223,12 @@ class api(object):
             return False
 
     async def get_settings(self):
-        body = [{"cmd": "GetDevInfo", "action":1, "param": {"channel": self._channel}},
+        body = [
+            {"cmd": "GetDevInfo", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetLocalLink", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetNetPort", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetUser", "action": 1, "param": {"channel": self._channel}}]
+            {"cmd": "GetUser", "action": 1, "param": {"channel": self._channel}},
+        ]
 
         response = await self.send(body)
 
@@ -235,7 +242,7 @@ class api(object):
             return False
 
     async def get_motion_state(self):
-        body = [{"cmd": "GetMdState", "action": 0, "param":{"channel":self._channel}}]
+        body = [{"cmd": "GetMdState", "action": 0, "param": {"channel": self._channel}}]
 
         response = await self.send(body)
 
@@ -243,7 +250,9 @@ class api(object):
             json_data = json.loads(response)
 
             if json_data is None:
-                _LOGGER.error(f"Unable to get Motion detection state at IP {self._host}")
+                _LOGGER.error(
+                    f"Unable to get Motion detection state at IP {self._host}"
+                )
                 self._motion_state = False
                 return self._motion_state
 
@@ -257,7 +266,7 @@ class api(object):
     async def get_still_image(self):
         param = {"cmd": "Snap", "channel": self._channel}
         response = await self.send(None, param)
-        # response = await self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}")
+
         if response is None:
             return
 
@@ -274,7 +283,7 @@ class api(object):
             stream_source = f"rtsp://{self._host}:{self._rtspport}/h264Preview_{self._channel+1:02d}_{self._stream}&token={self._token}"
         else:
             stream_source = f"rtmp://{self._host}:{self._rtmpport}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
-        
+
         return stream_source
 
     async def update_streaming_options(self, stream, protocol, channel):
@@ -284,10 +293,9 @@ class api(object):
         self._channel = channel
 
     async def map_json_response(self, json_data):
-
         for data in json_data:
             try:
-                if data["code"] == 1: # -->Error, like "ability error"
+                if data["code"] == 1:  # -->Error, like "ability error"
                     continue
 
                 if data["cmd"] == "GetDevInfo":
@@ -307,27 +315,31 @@ class api(object):
 
                 elif data["cmd"] == "GetFtp":
                     self._ftp_settings = data
-                    self._ftp_state = (data["value"]["Ftp"]["schedule"]["enable"] == 1)
+                    self._ftp_state = data["value"]["Ftp"]["schedule"]["enable"] == 1
 
                 elif data["cmd"] == "GetEnc":
                     self._enc_settings = data
-                    self._audio_state = (data["value"]["Enc"]["audio"] == 1)
+                    self._audio_state = data["value"]["Enc"]["audio"] == 1
 
                 elif data["cmd"] == "GetEmail":
                     self._email_settings = data
-                    self._email_state = (data["value"]["Email"]["schedule"]["enable"] == 1)
+                    self._email_state = (
+                        data["value"]["Email"]["schedule"]["enable"] == 1
+                    )
 
                 elif data["cmd"] == "GetIsp":
                     self._isp_settings = data
-                    self._dayNight_state = (data["value"]["Isp"]["dayNight"] == "Auto")
+                    self._dayNight_state = data["value"]["Isp"]["dayNight"] == "Auto"
 
                 elif data["cmd"] == "GetIrLights":
                     self._ir_settings = data
-                    self._ir_state = (data["value"]["IrLights"]["state"] == "Auto")
+                    self._ir_state = data["value"]["IrLights"]["state"] == "Auto"
 
                 elif data["cmd"] == "GetRec":
                     self._recording_settings = data
-                    self._recording_state = (data["value"]["Rec"]["schedule"]["enable"] == 1)
+                    self._recording_state = (
+                        data["value"]["Rec"]["schedule"]["enable"] == 1
+                    )
 
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptzpresets_settings = data
@@ -336,13 +348,15 @@ class api(object):
                             preset_name = preset["name"]
                             preset_id = int(preset["id"])
                             self._ptzpresets[preset_name] = preset_id
-                            _LOGGER.debug(f"Got preset {preset_name} with ID {preset_id}")
+                            _LOGGER.debug(
+                                f"Got preset {preset_name} with ID {preset_id}"
+                            )
                         else:
                             _LOGGER.debug(f"Preset is not enabled: {preset}")
 
                 elif data["cmd"] == "GetAlarm":
                     self._motion_detection_settings = data
-                    self._motion_detection_state = (data["value"]["Alarm"]["enable"] == 1)
+                    self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
 
                 elif data["cmd"] == "GetMdState":
                     self._motion_state = json_data[0]["value"]["state"] == 1
@@ -350,13 +364,22 @@ class api(object):
                 continue
 
     async def login(self):
-
         if self.session_active:
             return True
 
-        _LOGGER.info(f"Reolink camera with host {self._host}:{self._port} trying to login with user {self._username}")
+        _LOGGER.info(
+            f"Reolink camera with host {self._host}:{self._port} trying to login with user {self._username}"
+        )
 
-        body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": self._username, "password": self._password}}}]
+        body = [
+            {
+                "cmd": "Login",
+                "action": 0,
+                "param": {
+                    "User": {"userName": self._username, "password": self._password}
+                },
+            }
+        ]
         param = {"cmd": "Login", "token": "null"}
 
         response = await self.send(body, param)
@@ -372,9 +395,11 @@ class api(object):
             if json_data[0]["code"] == 0:
                 self._token = json_data[0]["value"]["Token"]["name"]
                 leaseTime = json_data[0]["value"]["Token"]["leaseTime"]
-                self._leaseTime = (datetime.now()+timedelta(seconds=leaseTime))
+                self._leaseTime = datetime.now() + timedelta(seconds=leaseTime)
 
-                _LOGGER.info(f"Reolink camera logged in at IP {self._host}. Leasetime {self._leaseTime:%d-%m-%Y %H:%M}, token {self._token}")
+                _LOGGER.info(
+                    f"Reolink camera logged in at IP {self._host}. Leasetime {self._leaseTime:%d-%m-%Y %H:%M}, token {self._token}"
+                )
                 return True
             else:
                 _LOGGER.error(f"Failed to login at IP {self._host}. No token available")
@@ -385,14 +410,18 @@ class api(object):
 
     async def isAdmin(self):
         for user in self._users:
-            if user['userName'] == self._username:
-                if (user['level'] == 'admin'):
-                    _LOGGER.info(f"User {self._username} has authorisation level {user['level']}")
-                else: 
-                    _LOGGER.info(f"User {self._username} has authorisation level {user['level']}. Only admin users can change camera settings! Switches will not work.")
+            if user["userName"] == self._username:
+                if user["level"] == "admin":
+                    _LOGGER.info(
+                        f"User {self._username} has authorisation level {user['level']}"
+                    )
+                else:
+                    _LOGGER.info(
+                        f"User {self._username} has authorisation level {user['level']}. Only admin users can change camera settings! Switches will not work."
+                    )
 
     async def logout(self):
-        body = [{"cmd":"Logout","action":0,"param":{}}]
+        body = [{"cmd": "Logout", "action": 0, "param": {}}]
         param = {"cmd": "Logout"}
 
         await self.send(body, param)
@@ -407,7 +436,7 @@ class api(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetFtp","action":0,"param": self._ftp_settings["value"] }]
+        body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
         body[0]["param"]["Ftp"]["schedule"]["enable"] = newValue
 
         return await self.send_setting(body)
@@ -422,7 +451,7 @@ class api(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetEnc","action":0,"param": self._enc_settings["value"] }]
+        body = [{"cmd": "SetEnc", "action": 0, "param": self._enc_settings["value"]}]
         body[0]["param"]["Enc"]["audio"] = newValue
 
         return await self.send_setting(body)
@@ -437,7 +466,9 @@ class api(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetEmail","action":0,"param": self._email_settings["value"] }]
+        body = [
+            {"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}
+        ]
         body[0]["param"]["Email"]["schedule"]["enable"] = newValue
 
         return await self.send_setting(body)
@@ -452,7 +483,9 @@ class api(object):
         else:
             newValue = "Off"
 
-        body = [{"cmd":"SetIrLights","action":0,"param": self._ir_settings["value"] }]
+        body = [
+            {"cmd": "SetIrLights", "action": 0, "param": self._ir_settings["value"]}
+        ]
         body[0]["param"]["IrLights"]["state"] = newValue
 
         return await self.send_setting(body)
@@ -462,10 +495,10 @@ class api(object):
             _LOGGER.error("Error while fetching current ISP settings")
             return
 
-        if value in [ "Auto", "Color", "Black&White" ]:
+        if value in ["Auto", "Color", "Black&White"]:
             newValue = value
 
-        body = [{"cmd":"SetIsp","action":0,"param": self._ir_settings["value"] }]
+        body = [{"cmd": "SetIsp", "action": 0, "param": self._ir_settings["value"]}]
         body[0]["param"]["Isp"]["dayNight"] = newValue
 
         return await self.send_setting(body)
@@ -480,7 +513,9 @@ class api(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetRec","action":0,"param": self._recording_settings["value"] }]
+        body = [
+            {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
+        ]
         body[0]["param"]["Rec"]["schedule"]["enable"] = newValue
 
         return await self.send_setting(body)
@@ -495,7 +530,13 @@ class api(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetAlarm","action":0,"param": self._motion_detection_settings["value"] }]
+        body = [
+            {
+                "cmd": "SetAlarm",
+                "action": 0,
+                "param": self._motion_detection_settings["value"],
+            }
+        ]
         body[0]["param"]["Alarm"]["enable"] = newValue
         return await self.send_setting(body)
 
@@ -517,13 +558,12 @@ class api(object):
             return False
 
     async def send(self, body, param={}):
-        if (body is None 
-        or (body[0]["cmd"] != "Login" and body[0]["cmd"] != "Logout")):
+        if body is None or (body[0]["cmd"] != "Login" and body[0]["cmd"] != "Logout"):
             if not await self.login():
                 return False
 
         if self._token is not None:
-            param["token"]=self._token
+            param["token"] = self._token
 
         timeout = aiohttp.ClientTimeout(total=10)
 
@@ -533,6 +573,8 @@ class api(object):
                     return await response.read()
         else:
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(url=self._url, json=body, params=param) as response:
+                async with session.post(
+                    url=self._url, json=body, params=param
+                ) as response:
                     json_data = await response.text()
                     return json_data
