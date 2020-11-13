@@ -45,11 +45,13 @@ class api(object):
         self._ftp_settings = None
         self._enc_settings = None
         self._ptzpresets_settings = None
+        self._ability_settings = None
         self._users = None
         self._local_link = None
         self._stream = DEFAULT_STREAM
         self._protocol = DEFAULT_PROTOCOL
         self._channel = DEFAULT_CHANNEL
+        self._hasPtz = False
 
     @property
     def host(self):
@@ -166,8 +168,6 @@ class api(object):
 
     async def get_switchCapabilities(self):
         capabilities = []
-        if len(self._ptzpresets) != 0:
-            capabilities.append("ptzPresets")
 
         if self._ftp_state is not None:
             capabilities.append("ftp")
@@ -190,8 +190,11 @@ class api(object):
         if self._audio_state is not None:
             capabilities.append("audio")
 
-        if self._ptzpresets_settings is not None:
-            capabilities.append("PTZpresets")
+        if self._hasPtz:
+            capabilities.append("ptzControl")
+
+        if len(self._ptzpresets) != 0:
+            capabilities.append("ptzPresets")
 
         return capabilities
 
@@ -228,6 +231,11 @@ class api(object):
             {"cmd": "GetLocalLink", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetNetPort", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetUser", "action": 1, "param": {"channel": self._channel}},
+            {
+                "cmd": "GetAbility",
+                "action": 1,
+                "param": {"User": {"userName": self._username}},
+            },
         ]
 
         response = await self.send(body)
@@ -360,6 +368,10 @@ class api(object):
 
                 elif data["cmd"] == "GetMdState":
                     self._motion_state = json_data[0]["value"]["state"] == 1
+
+                elif data["cmd"] == "GetAbility":
+                    for ability in data["value"]["Ability"]["abilityChn"]:
+                        self._hasPtz = ability["ptzCtrl"]["permit"] != 0
             except:
                 continue
 
@@ -538,6 +550,61 @@ class api(object):
             }
         ]
         body[0]["param"]["Alarm"]["enable"] = newValue
+        return await self.send_setting(body)
+
+    async def set_ptz_preset(self, preset_id, speed=60):
+        body = [
+            {
+                "cmd": "PtzCtrl",
+                "action": 0,
+                "param": {
+                    "channel": self._channel,
+                    "op": "ToPos",
+                    "speed": speed,
+                    "id": preset_id,
+                },
+            }
+        ]
+        return await self.send_setting(body)
+
+    async def set_ptz_command(self, command, speed=0):
+        ''' 
+        List of possible commands
+        -------------------------
+        Command     Speed
+        -------------------------
+        Right       X
+        RightUp     X  
+        RightDown   X
+        Left        X
+        LeftUp      X
+        LeftDown    X
+        Up          X
+        Down        X
+        ZoomInc     X
+        ZoomDec     X
+        FocusInc    X
+        FocusDec    X
+        Auto
+        Stop
+        '''
+
+        if speed == 0:
+            body = [
+                {
+                    "cmd": "PtzCtrl",
+                    "action": 0,
+                    "param": {"channel": self._channel, "op": command},
+                }
+            ]
+        else:
+            body = [
+                {
+                    "cmd": "PtzCtrl",
+                    "action": 0,
+                    "param": {"channel": self._channel, "op": command, "speed": speed},
+                }
+            ]
         return await self.send_setting(body)
 
     async def send_setting(self, body):
