@@ -552,22 +552,7 @@ class api(object):
         body[0]["param"]["Alarm"]["enable"] = newValue
         return await self.send_setting(body)
 
-    async def set_ptz_preset(self, preset_id, speed=60):
-        body = [
-            {
-                "cmd": "PtzCtrl",
-                "action": 0,
-                "param": {
-                    "channel": self._channel,
-                    "op": "ToPos",
-                    "speed": speed,
-                    "id": preset_id,
-                },
-            }
-        ]
-        return await self.send_setting(body)
-
-    async def set_ptz_command(self, command, speed=0):
+    async def set_ptz_command(self, command, preset=None, speed=0):
         ''' 
         List of possible commands
         -------------------------
@@ -589,22 +574,18 @@ class api(object):
         Stop
         '''
 
-        if speed == 0:
-            body = [
-                {
-                    "cmd": "PtzCtrl",
-                    "action": 0,
-                    "param": {"channel": self._channel, "op": command},
-                }
-            ]
-        else:
-            body = [
-                {
-                    "cmd": "PtzCtrl",
-                    "action": 0,
-                    "param": {"channel": self._channel, "op": command, "speed": speed},
-                }
-            ]
+        body = [
+            {
+                "cmd": "PtzCtrl",
+                "action": 0,
+                "param": {"channel": self._channel, "op": command},
+            }
+        ]
+
+        if speed != 0:
+            body[0]["param"]["speed"] = speed
+        if preset:
+            body[0]["param"]["id"] = preset
         return await self.send_setting(body)
 
     async def send_setting(self, body):
