@@ -552,12 +552,12 @@ class api(object):
         body[0]["param"]["Alarm"]["enable"] = newValue
         return await self.send_setting(body)
 
-    async def set_ptz_command(self, command, preset=None, speed=0):
+    async def set_ptz_command(self, command, preset=None, speed=None):
         ''' 
         List of possible commands
-        -------------------------
-        Command     Speed
-        -------------------------
+        --------------------------
+        Command     Speed   Preset
+        --------------------------
         Right       X
         RightUp     X  
         RightDown   X
@@ -570,6 +570,7 @@ class api(object):
         ZoomDec     X
         FocusInc    X
         FocusDec    X
+        ToPos       X       X
         Auto
         Stop
         '''
@@ -582,7 +583,7 @@ class api(object):
             }
         ]
 
-        if speed != 0:
+        if speed:
             body[0]["param"]["speed"] = speed
         if preset:
             body[0]["param"]["id"] = preset
