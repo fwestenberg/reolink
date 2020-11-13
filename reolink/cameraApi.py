@@ -50,7 +50,6 @@ class api(object):
         self._protocol = DEFAULT_PROTOCOL
         self._channel = DEFAULT_CHANNEL
 
-
     @property
     def host(self):
         return self._host
@@ -162,11 +161,9 @@ class api(object):
             self._leaseTime = None
             return False
 
-
     async def clear_token(self):
         self._token = None
         self._leaseTime = None
-
     
     async def get_switchCapabilities(self):
         capabilities = []
@@ -199,7 +196,6 @@ class api(object):
 
         return capabilities
 
-
     async def get_states(self):
         body = [{"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEnc", "action": 1, "param": {"channel": self._channel}},
@@ -221,7 +217,6 @@ class api(object):
             await self.clear_token()
             return False
 
-
     async def get_settings(self):
         body = [{"cmd": "GetDevInfo", "action":1, "param": {"channel": self._channel}},
             {"cmd": "GetLocalLink", "action": 1, "param": {"channel": self._channel}},
@@ -238,7 +233,6 @@ class api(object):
             _LOGGER.error(f"Error translating Reolink settings response")
             await self.clear_token()
             return False
-
 
     async def get_motion_state(self):
         body = [{"cmd": "GetMdState", "action": 0, "param":{"channel":self._channel}}]
@@ -354,7 +348,6 @@ class api(object):
                     self._motion_state = json_data[0]["value"]["state"] == 1
             except:
                 continue
-
 
     async def login(self):
 
@@ -506,7 +499,6 @@ class api(object):
         body[0]["param"]["Alarm"]["enable"] = newValue
         return await self.send_setting(body)
 
-
     async def send_setting(self, body):
         command = body[0]["cmd"]
         _LOGGER.debug(f"Sending command: {command} to: {self._host} with body: {body}")
@@ -523,7 +515,6 @@ class api(object):
         except:
             _LOGGER.error(f"Error translating {command} response to json")
             return False
-
 
     async def send(self, body, param={}):
         if (body is None 
