@@ -336,11 +336,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             return
 
         if self.protocol == "rtsp":
-            stream_source = f"""rtsp://{self._host}:{self._rtspport}/h264Preview_
-            {self._channel+1:02d}_{self._stream}&token={self._token}"""
+            stream_source = f"rtsp://{self._host}:{self._rtspport}/h264Preview_{self._channel+1:02d}_{self._stream}&token={self._token}"
         else:
-            stream_source = f"""rtmp://{self._host}:{self._rtmpport}/bcs/channel{self._channel}_
-            {self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"""
+            stream_source = f"rtmp://{self._host}:{self._rtmpport}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
 
         return stream_source
 
@@ -497,8 +495,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
         body[0]["param"]["Ftp"]["schedule"]["enable"] = new_value
@@ -513,8 +511,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [{"cmd": "SetEnc", "action": 0, "param": self._enc_settings["value"]}]
         body[0]["param"]["Enc"]["audio"] = new_value
@@ -529,8 +527,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}
@@ -547,8 +545,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = "Auto"
-
-        new_value = "Off"
+        else:
+            new_value = "Off"
 
         body = [
             {"cmd": "SetIrLights", "action": 0, "param": self._ir_settings["value"]}
@@ -582,8 +580,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
@@ -600,8 +598,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {
