@@ -335,10 +335,10 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if not await self.login():
             return
 
-        if self.protocol == "rtsp":
-            stream_source = f"rtsp://{self._host}:{self._rtspport}/h264Preview_{self._channel+1:02d}_{self._stream}&token={self._token}"
-        else:
+        if self.protocol == DEFAULT_PROTOCOL:
             stream_source = f"rtmp://{self._host}:{self._rtmpport}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
+        else:
+            stream_source = f"rtsp://{self._host}:{self._rtspport}/h264Preview_{self._channel+1:02d}_{self._stream}&token={self._token}"
 
         return stream_source
 
