@@ -25,34 +25,34 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         self._port = port
         self._username = username
         self._password = password
-        self._channel = 0
         self._token = None
         self._lease_time = None
         self._motion_state = False
-        self._last_motion = 0
         self._device_info = None
+        self._hdd_info = None
         self._ftp_state = None
         self._email_state = None
         self._ir_state = None
         self._daynight_state = None
         self._recording_state = None
         self._audio_state = None
-        self._rtspport = None
-        self._rtmpport = None
+        self._rtsp_port = None
+        self._rtmp_port = None
         self._onvifport = None
-        self._ptzpresets = dict()
+        self._ptz_presets = dict()
+        self._sensititivy_presets = dict()
         self._motion_detection_state = None
 
         self._isp_settings = None
         self._ftp_settings = None
         self._enc_settings = None
-        self._ptzpresets_settings = None
+        self._ptz_presets_settings = None
         self._ability_settings = None
         self._netport_settings = None
         self._email_settings = None
         self._ir_settings = None
         self._recording_settings = None
-        self._motion_detection_settings = None
+        self._alarm_settings = None
 
         self._users = None
         self._local_link = None
@@ -142,29 +142,34 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         return self._audio_state
 
     @property
-    def rtmpport(self):
+    def rtmp_port(self):
         """Return the RTMP port."""
-        return self._rtmpport
+        return self._rtmp_port
 
     @property
-    def rtspport(self):
+    def rtsp_port(self):
         """Return the RTSP port."""
-        return self._rtspport
+        return self._rtsp_port
 
     @property
-    def last_motion(self):
-        """Return the moment of last motion."""
-        return self._last_motion
-
-    @property
-    def ptzpresets(self):
+    def ptz_presets(self):
         """Return the PTZ presets."""
-        return self._ptzpresets
+        return self._ptz_presets
+
+    @property
+    def sensititivy_presets(self):
+        """Return the sensitivity presets."""
+        return self._sensititivy_presets
 
     @property
     def device_info(self):
         """Return the device info."""
         return self._device_info
+
+    @property
+    def hdd_info(self):
+        """Return the HDD info."""
+        return self._hdd_info
 
     @property
     def stream(self):
@@ -234,12 +239,15 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if self._ptz_support:
             capabilities.append("ptzControl")
 
-        if len(self._ptzpresets) != 0:
+        if len(self._ptz_presets) != 0:
             capabilities.append("ptzPresets")
+
+        if len(self._sensititivy_presets) != 0:
+            capabilities.append("sensititivyPresets")
 
         return capabilities
 
-    async def get_states(self):
+    async def get_states(self, cmd_list=None):
         """Fetch the state objects."""
         body = [
             {"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
@@ -256,13 +264,17 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             },
         ]
 
-        response = await self.send(body)
+        if cmd_list is not None:
+            for x, line in enumerate(body):
+                if line["cmd"] not in cmd_list:
+                    body.pop(x)
 
+        response = await self.send(body)
         try:
             json_data = json.loads(response)
             await self.map_json_response(json_data)
             return True
-        except json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             _LOGGER.error("Error translating Reolink state response")
             await self.clear_token()
             return False
@@ -274,6 +286,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             {"cmd": "GetLocalLink", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetNetPort", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetUser", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetHddInfo", "action": 1, "param": {}},
             {
                 "cmd": "GetAbility",
                 "action": 1,
@@ -287,7 +300,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             json_data = json.loads(response)
             await self.map_json_response(json_data)
             return True
-        except json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             _LOGGER.error("Error translating Reolink settings response")
             await self.clear_token()
             return False
@@ -310,7 +323,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 return self._motion_state
 
             await self.map_json_response(json_data)
-        except json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             await self.clear_token()
             self._motion_state = False
 
@@ -321,9 +334,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         param = {"cmd": "Snap", "channel": self._channel}
         response = await self.send(None, param)
 
-        if response is None:
+        if response is None or response == b'':
             return
-
         return response
 
     async def get_snapshot(self):
@@ -335,12 +347,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if not await self.login():
             return
 
-        if self.protocol == "rtsp":
-            stream_source = f"""rtsp://{self._host}:{self._rtspport}/h264Preview_
-            {self._channel+1:02d}_{self._stream}&token={self._token}"""
+        if self.protocol == DEFAULT_PROTOCOL:
+            stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
         else:
-            stream_source = f"""rtmp://{self._host}:{self._rtmpport}/bcs/channel{self._channel}_
-            {self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"""
+            channel = "{:02d}".format(self._channel+1)
+            stream_source = f"rtsp://{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}&token={self._token}"
 
         return stream_source
 
@@ -360,13 +371,16 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 if data["cmd"] == "GetDevInfo":
                     self._device_info = data
 
+                if data["cmd"] == "GetHddInfo":
+                    self._hdd_info = data
+
                 if data["cmd"] == "GetLocalLink":
                     self._local_link = data
 
                 elif data["cmd"] == "GetNetPort":
                     self._netport_settings = data
-                    self._rtspport = data["value"]["NetPort"]["rtspPort"]
-                    self._rtmpport = data["value"]["NetPort"]["rtmpPort"]
+                    self._rtsp_port = data["value"]["NetPort"]["rtspPort"]
+                    self._rtmp_port = data["value"]["NetPort"]["rtmpPort"]
                     self._onvifport = data["value"]["NetPort"]["onvifPort"]
 
                 if data["cmd"] == "GetUser":
@@ -401,16 +415,17 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     )
 
                 elif data["cmd"] == "GetPtzPreset":
-                    self._ptzpresets_settings = data
+                    self._ptz_presets_settings = data
                     for preset in data["value"]["PtzPreset"]:
                         if int(preset["enable"]) == 1:
                             preset_name = preset["name"]
                             preset_id = int(preset["id"])
-                            self._ptzpresets[preset_name] = preset_id
+                            self._ptz_presets[preset_name] = preset_id
 
                 elif data["cmd"] == "GetAlarm":
-                    self._motion_detection_settings = data
+                    self._alarm_settings = data
                     self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
+                    self._sensititivy_presets = data["value"]["Alarm"]["sens"]
 
                 elif data["cmd"] == "GetMdState":
                     self._motion_state = json_data[0]["value"]["state"] == 1
@@ -426,7 +441,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if self.session_active:
             return True
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Reolink camera with host %s:%s trying to login with user %s",
             self._host, self._port, self._username
         )
@@ -447,7 +462,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         try:
             json_data = json.loads(response)
             _LOGGER.debug("Get response from %s: %s", self._host, json_data)
-        except json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             _LOGGER.error("Error translating login response to json")
             return False
 
@@ -457,7 +472,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 lease_time = json_data[0]["value"]["Token"]["leaseTime"]
                 self._lease_time = datetime.now() + timedelta(seconds=lease_time)
 
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Reolink camera logged in at IP %s. Leasetime %s, token %s",
                     self._host, self._lease_time.strftime('%d-%m-%Y %H:%M'), self._token
                 )
@@ -471,7 +486,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         for user in self._users:
             if user["userName"] == self._username:
                 if user["level"] == "admin":
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "User %s has authorisation level %s",
                         self._username, user['level']
                     )
@@ -488,17 +503,18 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         param = {"cmd": "Logout"}
 
         await self.send(body, param)
+        await self.clear_token()
 
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
-        if not await self.get_states() or not self._ftp_settings:
-            _LOGGER.error("Error while fetching current FTP settings")
-            return
+        if not self._ftp_settings:
+            _LOGGER.error("Actual FTP settings not available")
+            return False
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
         body[0]["param"]["Ftp"]["schedule"]["enable"] = new_value
@@ -507,14 +523,14 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_audio(self, enable):
         """Set the audio parameter."""
-        if not await self.get_states() or not self._enc_settings:
-            _LOGGER.error("Error while fetching current audio settings")
-            return
+        if not self._enc_settings:
+            _LOGGER.error("Actual audio settings not available")
+            return False
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [{"cmd": "SetEnc", "action": 0, "param": self._enc_settings["value"]}]
         body[0]["param"]["Enc"]["audio"] = new_value
@@ -523,14 +539,14 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_email(self, enable):
         """Set the email parameter."""
-        if not await self.get_states() or not self._email_settings:
-            _LOGGER.error("Error while fetching current email settings")
-            return
+        if not self._email_settings:
+            _LOGGER.error("Actual email settings not available")
+            return False
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}
@@ -541,14 +557,14 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_ir_lights(self, enable):
         """Set the IR lights parameter."""
-        if not await self.get_states() or not self._ir_settings:
-            _LOGGER.error("Error while fetching current IR light settings")
-            return
+        if not self._ir_settings:
+            _LOGGER.error("Actual IR light settings not available")
+            return False
 
         if enable:
             new_value = "Auto"
-
-        new_value = "Off"
+        else:
+            new_value = "Off"
 
         body = [
             {"cmd": "SetIrLights", "action": 0, "param": self._ir_settings["value"]}
@@ -559,31 +575,31 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_daynight(self, value):
         """Set the daynight parameter."""
-        if not await self.get_states() or not self._isp_settings:
-            _LOGGER.error("Error while fetching current ISP settings")
-            return
+        if not self._isp_settings:
+            _LOGGER.error("Actual ISP settings not available")
+            return False
 
         if value not in ["Auto", "Color", "Black&White"]:
             _LOGGER.error("Invalid input: %s", value)
-            return
+            return False
 
         new_value = value
 
-        body = [{"cmd": "SetIsp", "action": 0, "param": self._ir_settings["value"]}]
+        body = [{"cmd": "SetIsp", "action": 0, "param": self._isp_settings["value"]}]
         body[0]["param"]["Isp"]["dayNight"] = new_value
 
         return await self.send_setting(body)
 
     async def set_recording(self, enable):
         """Set the recording parameter."""
-        if not await self.get_states() or not self._recording_settings:
-            _LOGGER.error("Error while fetching current recording settings")
-            return
+        if not self._recording_settings:
+            _LOGGER.error("Actual recording settings not available")
+            return False
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
@@ -594,23 +610,55 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_motion_detection(self, enable):
         """Set the motion detection parameter."""
-        if not await self.get_states() or not self._motion_detection_settings:
-            _LOGGER.error("Error while fetching current motion detection settings")
-            return
+        if not self._alarm_settings:
+            _LOGGER.error("Actual alarm settings not available")
+            return False
 
         if enable:
             new_value = 1
-
-        new_value = 0
+        else:
+            new_value = 0
 
         body = [
             {
                 "cmd": "SetAlarm",
                 "action": 0,
-                "param": self._motion_detection_settings["value"],
+                "param": self._alarm_settings["value"],
             }
         ]
         body[0]["param"]["Alarm"]["enable"] = new_value
+        return await self.send_setting(body)
+
+    async def set_sensitivity(self, value: int, preset=None):
+        """Set motion detection sensititivy.
+        Here the camera web and windows application
+        show a completely different value than set.
+        So the calculation 51-value makes the "real"
+        value.
+        """
+        if not self._alarm_settings:
+            _LOGGER.error("Actual alarm settings not available")
+            return False
+
+        body = [
+            {
+                "cmd": "SetAlarm",
+                "action": 1,
+                "param": {	
+                    "Alarm": {
+                        "channel": 0,
+                        "type": "md",
+                        "sens": 
+                            self._alarm_settings["value"]["Alarm"]["sens"],
+                        
+                    }
+                }
+            }
+        ]
+        for setting in body[0]["param"]["Alarm"]["sens"]:
+            if preset is None or preset == setting["id"]:
+                setting["sensitivity"] = int(51 - value)
+
         return await self.send_setting(body)
 
     async def set_ptz_command(self, command, preset=None, speed=None):
@@ -664,12 +712,16 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             _LOGGER.debug("Response from %s: %s", self._host, json_data)
 
             if json_data[0]["value"]["rspCode"] == 200:
-                await self.get_states()
+                getcmd = command.replace("Set", "Get")
+                await self.get_states(cmd_list=[getcmd])
                 return True
 
             return False
-        except json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             _LOGGER.error("Error translating %s response to json", command)
+            return False
+        except KeyError:
+            _LOGGER.error("Received an unexpected response while sending command: %s", command)
             return False
 
     async def send(self, body, param=None):
@@ -685,14 +737,17 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         timeout = aiohttp.ClientTimeout(total=10)
 
-        if body is None:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url=self._url, params=param) as response:
-                    return await response.read()
-        else:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                    url=self._url, json=body, params=param
-                ) as response:
-                    json_data = await response.text()
-                    return json_data
+        try:
+            if body is None:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.get(url=self._url, params=param) as response:
+                        return await response.read()
+            else:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                        url=self._url, json=body, params=param
+                    ) as response:
+                        json_data = await response.text()
+                        return json_data
+        except: #pylint: disable=bare-except
+            return ""
