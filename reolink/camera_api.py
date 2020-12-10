@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     """Reolink API class."""
 
-    def __init__(self, host, port, username, password):
+    def __init__(self, host, port, username, password, channel=DEFAULT_CHANNEL):
         """Initialize the API class."""
         self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
         self._host = host
@@ -58,7 +58,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         self._local_link = None
         self._stream = DEFAULT_STREAM
         self._protocol = DEFAULT_PROTOCOL
-        self._channel = DEFAULT_CHANNEL
+        self._channel = channel
         self._ptz_support = False
 
     @property
