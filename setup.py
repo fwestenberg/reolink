@@ -2,13 +2,13 @@ from distutils.core import setup
 setup(
   name = 'reolink',
   packages = ['reolink'],
-  version = '0.0.10',
+  version = '0.0.11',
   license='MIT',
   description = 'Reolink camera package',
   author = 'fwestenberg',
   author_email = '',
   url = 'https://github.com/fwestenberg/reolink',
-  download_url = 'https://github.com/fwestenberg/reolink/archive/v_010.tar.gz',
+  download_url = 'https://github.com/fwestenberg/reolink/archive/v_011.tar.gz',
   keywords = ['Reolink', 'Home-Assistant'],
   install_requires=[
           'ffmpeg',
