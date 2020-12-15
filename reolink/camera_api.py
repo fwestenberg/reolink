@@ -11,6 +11,7 @@ MANUFACTURER = "Reolink"
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
+DEFAULT_TIMEOUT = 10
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,13 +19,15 @@ _LOGGER = logging.getLogger(__name__)
 class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     """Reolink API class."""
 
-    def __init__(self, host, port, username, password):
+    def __init__(self, host, port, username, password, channel=DEFAULT_CHANNEL, timeout=DEFAULT_TIMEOUT):
         """Initialize the API class."""
         self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
         self._host = host
         self._port = port
         self._username = username
         self._password = password
+        self._channel = channel
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._token = None
         self._lease_time = None
         self._motion_state = False
@@ -63,7 +66,6 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         self._local_link = None
         self._stream = DEFAULT_STREAM
         self._protocol = DEFAULT_PROTOCOL
-        self._channel = DEFAULT_CHANNEL
         self._ptz_support = False
 
     @property
@@ -752,15 +754,13 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if self._token is not None:
             param["token"] = self._token
 
-        timeout = aiohttp.ClientTimeout(total=10)
-
         try:
             if body is None:
-                async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with aiohttp.ClientSession(timeout=self._timeout) as session:
                     async with session.get(url=self._url, params=param) as response:
                         return await response.read()
             else:
-                async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with aiohttp.ClientSession(timeout=self._timeout) as session:
                     async with session.post(
                         url=self._url, json=body, params=param
                     ) as response:
