@@ -12,16 +12,18 @@ import aiohttp
 from . import templates
 
 TERMINATION_TIME = 15
+DEFAULT_TIMEOUT = 10
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class Manager:
     """Initialize the Reolink event class."""
-    def __init__(self, host, port, username, password):
+    def __init__(self, host, port, username, password, timeout=DEFAULT_TIMEOUT):
         self._host = host
         self._username = username
         self._password = password
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._subscribe_url = f"http://{host}:{port}"
         self._manager_url = None
         self._termination_time = None
@@ -76,10 +78,9 @@ class Manager:
 
     async def send(self, headers, data):
         """Send data to the camera."""
-        timeout = aiohttp.ClientTimeout(total=10)
 
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(timeout=self._timeout) as session:
                 async with session.post(
                     url=self._subscribe_url, data=data, headers=headers
                 ) as response:

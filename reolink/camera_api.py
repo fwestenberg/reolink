@@ -47,6 +47,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         self._name = None
         self._sw_version = None
         self._model = None
+        self._channels = None
         self._ptz_presets = dict()
         self._sensitivity_presets = dict()
         self._motion_detection_state = None
@@ -112,6 +113,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
     def manufacturer(self):
         """Return the manufacturer name (Reolink)."""
         return MANUFACTURER
+    
+    @property
+    def channels(self):
+        """Return the number of channels."""
+        return self._channels
 
     @property
     def motion_state(self):
@@ -376,6 +382,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     self._device_name = data["value"]["DevInfo"]["name"]
                     self._sw_version = data["value"]["DevInfo"]["firmVer"]
                     self._model = data["value"]["DevInfo"]["model"]
+                    self._channels = data["value"]["DevInfo"]["channelNum"]
 
                 elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data
@@ -516,13 +523,21 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         await self.send(body, param)
         await self.clear_token()
 
-    async def set_streaming(self, stream):
+    async def set_channel(self, channel):
+        """Update the channel property."""
+        self._channel = channel
+
+    async def set_stream(self, stream):
         """Update the stream property."""
         self._stream = stream
 
     async def set_protocol(self, protocol):
         """Update the protocol property."""
         self._protocol = protocol
+
+    async def set_timeout(self, timeout):
+        """Update the timeout property."""
+        self._timeout = timeout
 
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
