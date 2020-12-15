@@ -39,8 +39,13 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         self._rtsp_port = None
         self._rtmp_port = None
         self._onvifport = None
+        self._mac_address = None
+        self._serial = None
+        self._name = None
+        self._sw_version = None
+        self._model = None
         self._ptz_presets = dict()
-        self._sensititivy_presets = dict()
+        self._sensitivity_presets = dict()
         self._motion_detection_state = None
 
         self._isp_settings = None
@@ -79,27 +84,27 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
     @property
     def mac_address(self):
         """Return the mac address."""
-        return self._local_link["value"]["LocalLink"]["mac"]
+        return self._mac_address
 
     @property
     def serial(self):
         """Return the serial."""
-        return self._device_info["value"]["DevInfo"]["serial"]
+        return self._serial
 
     @property
     def name(self):
         """Return the camera name."""
-        return self._device_info["value"]["DevInfo"]["name"]
+        return self._name
 
     @property
     def sw_version(self):
         """Return the software version."""
-        return self._device_info["value"]["DevInfo"]["firmVer"]
+        return self._sw_version
 
     @property
     def model(self):
         """Return the model."""
-        return self._device_info["value"]["DevInfo"]["model"]
+        return self._model
 
     @property
     def manufacturer(self):
@@ -157,9 +162,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         return self._ptz_presets
 
     @property
-    def sensititivy_presets(self):
+    def sensitivity_presets(self):
         """Return the sensitivity presets."""
-        return self._sensititivy_presets
+        return self._sensitivity_presets
 
     @property
     def device_info(self):
@@ -242,8 +247,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if len(self._ptz_presets) != 0:
             capabilities.append("ptzPresets")
 
-        if len(self._sensititivy_presets) != 0:
-            capabilities.append("sensititivyPresets")
+        if len(self._sensitivity_presets) != 0:
+            capabilities.append("sensitivityPresets")
 
         return capabilities
 
@@ -257,6 +262,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             {"cmd": "GetIrLights", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetPtzPreset", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetHddInfo", "action": 1, "param": {}},
             {
                 "cmd": "GetAlarm",
                 "action": 1,
@@ -286,7 +292,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             {"cmd": "GetLocalLink", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetNetPort", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetUser", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetHddInfo", "action": 1, "param": {}},
+            {"cmd": "GetOsd", "action": 1, "param": {"channel": self._channel}},
             {
                 "cmd": "GetAbility",
                 "action": 1,
@@ -355,12 +361,6 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         return stream_source
 
-    async def update_streaming_options(self, stream, protocol, channel):
-        """Update the streaming options."""
-        self._stream = stream
-        self._protocol = protocol
-        self._channel = channel
-
     async def map_json_response(self, json_data): #pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
         for data in json_data:
@@ -370,12 +370,17 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
                 if data["cmd"] == "GetDevInfo":
                     self._device_info = data
+                    self._serial = data["value"]["DevInfo"]["serial"]
+                    self._device_name = data["value"]["DevInfo"]["name"]
+                    self._sw_version = data["value"]["DevInfo"]["firmVer"]
+                    self._model = data["value"]["DevInfo"]["model"]
 
-                if data["cmd"] == "GetHddInfo":
+                elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data
 
-                if data["cmd"] == "GetLocalLink":
+                elif data["cmd"] == "GetLocalLink":
                     self._local_link = data
+                    self._mac_address = data["value"]["LocalLink"]["mac"]
 
                 elif data["cmd"] == "GetNetPort":
                     self._netport_settings = data
@@ -383,7 +388,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     self._rtmp_port = data["value"]["NetPort"]["rtmpPort"]
                     self._onvifport = data["value"]["NetPort"]["onvifPort"]
 
-                if data["cmd"] == "GetUser":
+                elif data["cmd"] == "GetOsd":
+                    self._osd_settings = data
+                    self._name = data["value"]["Osd"]["osdChannel"]["name"]
+
+                elif data["cmd"] == "GetUser":
                     self._users = data["value"]["User"]
 
                 elif data["cmd"] == "GetFtp":
@@ -402,7 +411,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
                 elif data["cmd"] == "GetIsp":
                     self._isp_settings = data
-                    self._daynight_state = data["value"]["Isp"]["dayNight"] == "Auto"
+                    self._daynight_state = data["value"]["Isp"]["dayNight"]
 
                 elif data["cmd"] == "GetIrLights":
                     self._ir_settings = data
@@ -425,7 +434,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 elif data["cmd"] == "GetAlarm":
                     self._alarm_settings = data
                     self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
-                    self._sensititivy_presets = data["value"]["Alarm"]["sens"]
+                    self._sensitivity_presets = data["value"]["Alarm"]["sens"]
 
                 elif data["cmd"] == "GetMdState":
                     self._motion_state = json_data[0]["value"]["state"] == 1
@@ -504,6 +513,14 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         await self.send(body, param)
         await self.clear_token()
+
+    async def set_streaming(self, stream):
+        """Update the stream property."""
+        self._stream = stream
+
+    async def set_protocol(self, protocol):
+        """Update the protocol property."""
+        self._protocol = protocol
 
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
@@ -630,7 +647,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         return await self.send_setting(body)
 
     async def set_sensitivity(self, value: int, preset=None):
-        """Set motion detection sensititivy.
+        """Set motion detection sensitivity.
         Here the camera web and windows application
         show a completely different value than set.
         So the calculation 51-value makes the "real"
