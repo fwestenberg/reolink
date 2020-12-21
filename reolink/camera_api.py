@@ -18,10 +18,20 @@ DEFAULT_TIMEOUT = 30
 _LOGGER = logging.getLogger(__name__)
 
 
-class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public-methods
+class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     """Reolink API class."""
 
-    def __init__(self, host, port, username, password, channel=DEFAULT_CHANNEL, timeout=DEFAULT_TIMEOUT):
+    def __init__(
+        self,
+        host,
+        port,
+        username,
+        password,
+        channel=DEFAULT_CHANNEL,
+        protocol=DEFAULT_PROTOCOL,
+        stream=DEFAULT_STREAM,
+        timeout=DEFAULT_TIMEOUT,
+    ):
         """Initialize the API class."""
         self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
         self._host = host
@@ -115,7 +125,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
     def manufacturer(self):
         """Return the manufacturer name (Reolink)."""
         return MANUFACTURER
-    
+
     @property
     def channels(self):
         """Return the number of channels."""
@@ -294,7 +304,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.debug("Host: %s: Error translating Reolink state response", self._host)
+            _LOGGER.debug(
+                "Host: %s: Error translating Reolink state response", self._host
+            )
             await self.clear_token()
             return False
 
@@ -322,7 +334,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.debug("Host %s: Error translating Reolink settings response", self._host)
+            _LOGGER.debug(
+                "Host %s: Error translating Reolink settings response", self._host
+            )
             await self.clear_token()
             return False
 
@@ -339,8 +353,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
             if json_data is None:
                 _LOGGER.error(
-                    "Unable to get Motion detection state at IP %s",
-                    self._host
+                    "Unable to get Motion detection state at IP %s", self._host
                 )
                 self._motion_state = False
                 return self._motion_state
@@ -357,7 +370,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         param = {"cmd": "Snap", "channel": self._channel}
 
         response = await self.send(None, param)
-        if response is None or response == b'':
+        if response is None or response == b"":
             return
 
         return response
@@ -375,12 +388,12 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
         else:
             password = parse.quote(self._password)
-            channel = "{:02d}".format(self._channel+1)
-            stream_source = f"rtsp://{self._username}{password}@{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}"
+            channel = "{:02d}".format(self._channel + 1)
+            stream_source = f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}"
 
         return stream_source
 
-    async def map_json_response(self, json_data): #pylint: disable=too-many-branches
+    async def map_json_response(self, json_data):  # pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
         for data in json_data:
             try:
@@ -462,7 +475,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
                         self._ptz_support = ability["ptzCtrl"]["permit"] != 0
-            except: #pylint: disable=bare-except
+            except:  # pylint: disable=bare-except
                 continue
 
     async def login(self):
@@ -472,7 +485,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
         _LOGGER.debug(
             "Reolink camera with host %s:%s trying to login with user %s",
-            self._host, self._port, self._username
+            self._host,
+            self._port,
+            self._username,
         )
 
         body = [
@@ -480,7 +495,10 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 "cmd": "Login",
                 "action": 0,
                 "param": {
-                    "User": {"userName": self._username, "password": self._password[:31]}
+                    "User": {
+                        "userName": self._username,
+                        "password": self._password[:31],
+                    }
                 },
             }
         ]
@@ -494,7 +512,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             json_data = json.loads(response)
             _LOGGER.debug("Get response from %s: %s", self._host, json_data)
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.debug("Host %s: Error translating login response to json", self._host)
+            _LOGGER.debug(
+                "Host %s: Error translating login response to json", self._host
+            )
             return False
 
         if json_data is not None:
@@ -505,7 +525,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
                 _LOGGER.debug(
                     "Reolink camera logged in at IP %s. Leasetime %s, token %s",
-                    self._host, self._lease_time.strftime('%d-%m-%Y %H:%M'), self._token
+                    self._host,
+                    self._lease_time.strftime("%d-%m-%Y %H:%M"),
+                    self._token,
                 )
                 return True
 
@@ -519,13 +541,15 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 if user["level"] == "admin":
                     _LOGGER.debug(
                         "User %s has authorisation level %s",
-                        self._username, user['level']
+                        self._username,
+                        user["level"],
                     )
                 else:
                     _LOGGER.warning(
                         """User %s has authorisation level %s. Only admin users can change
                         camera settings! Switches will not work.""",
-                        self._username, user['level']
+                        self._username,
+                        user["level"],
                     )
 
     async def logout(self):
@@ -691,15 +715,13 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             {
                 "cmd": "SetAlarm",
                 "action": 1,
-                "param": {	
+                "param": {
                     "Alarm": {
                         "channel": 0,
                         "type": "md",
-                        "sens": 
-                            self._alarm_settings["value"]["Alarm"]["sens"],
-                        
+                        "sens": self._alarm_settings["value"]["Alarm"]["sens"],
                     }
-                }
+                },
             }
         ]
         for setting in body[0]["param"]["Alarm"]["sens"]:
@@ -709,7 +731,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         return await self.send_setting(body)
 
     async def set_ptz_command(self, command, preset=None, speed=None):
-        '''Send PTZ command to the camera.
+        """Send PTZ command to the camera.
 
         List of possible commands
         --------------------------
@@ -730,7 +752,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         ToPos       X       X
         Auto
         Stop
-        '''
+        """
 
         body = [
             {
@@ -750,8 +772,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         """Send a setting."""
         command = body[0]["cmd"]
         _LOGGER.debug(
-            "Sending command: %s to: %s with body: %s",
-            command, self._host, body
+            "Sending command: %s to: %s with body: %s", command, self._host, body
         )
         response = await self.send(body, {"cmd": command})
         if response is None:
@@ -768,10 +789,16 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
             return False
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.debug("Host %s: Error translating %s response to json", self._host, command)
+            _LOGGER.debug(
+                "Host %s: Error translating %s response to json", self._host, command
+            )
             return False
         except KeyError:
-            _LOGGER.debug("Host %s: Received an unexpected response while sending command: %s", self._host, command)
+            _LOGGER.debug(
+                "Host %s: Received an unexpected response while sending command: %s",
+                self._host,
+                command,
+            )
             return False
 
     async def send(self, body, param=None):
@@ -781,7 +808,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 return False
 
         if not param:
-            param={}
+            param = {}
         if self._token is not None:
             param["token"] = self._token
 
@@ -799,9 +826,12 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                         return json_data
 
         except aiohttp.ClientConnectorError as conn_err:
-            _LOGGER.debug('Host %s: Connection error %s', self._host, str(conn_err))
+            _LOGGER.debug("Host %s: Connection error %s", self._host, str(conn_err))
         except asyncio.TimeoutError:
-            _LOGGER.debug('Host %s: connection timeout exception. Please check the connection to this camera.', self._host)
-        except: #pylint: disable=bare-except
-            _LOGGER.debug('Host %s: Unknown exception occurred.', self._host)
+            _LOGGER.debug(
+                "Host %s: connection timeout exception. Please check the connection to this camera.",
+                self._host,
+            )
+        except:  # pylint: disable=bare-except
+            _LOGGER.debug("Host %s: Unknown exception occurred.", self._host)
         return
