@@ -13,7 +13,7 @@ import asyncio
 from . import templates
 
 TERMINATION_TIME = 15
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ MANUFACTURER = "Reolink"
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 
 _LOGGER = logging.getLogger(__name__)
 
