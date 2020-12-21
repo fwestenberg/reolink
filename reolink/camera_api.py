@@ -548,7 +548,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_timeout(self, timeout):
         """Update the timeout property."""
-        self._timeout = timeout
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
 
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
