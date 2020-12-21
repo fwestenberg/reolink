@@ -5,13 +5,15 @@ import json
 import logging
 from datetime import datetime, timedelta
 
+import asyncio
 import aiohttp
+import urllib.parse as parse
 
 MANUFACTURER = "Reolink"
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -284,12 +286,15 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     body.pop(x)
 
         response = await self.send(body)
+        if response is None:
+            return False
+
         try:
             json_data = json.loads(response)
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating Reolink state response")
+            _LOGGER.debug("Host: %s: Error translating Reolink state response", self._host)
             await self.clear_token()
             return False
 
@@ -309,13 +314,15 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         ]
 
         response = await self.send(body)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating Reolink settings response")
+            _LOGGER.debug("Host %s: Error translating Reolink settings response", self._host)
             await self.clear_token()
             return False
 
@@ -324,6 +331,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         body = [{"cmd": "GetMdState", "action": 0, "param": {"channel": self._channel}}]
 
         response = await self.send(body)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
@@ -346,10 +355,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
     async def get_still_image(self):
         """Get the still image."""
         param = {"cmd": "Snap", "channel": self._channel}
-        response = await self.send(None, param)
 
+        response = await self.send(None, param)
         if response is None or response == b'':
             return
+
         return response
 
     async def get_snapshot(self):
@@ -364,8 +374,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if self.protocol == DEFAULT_PROTOCOL:
             stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
         else:
+            password = parse.quote(self._password)
             channel = "{:02d}".format(self._channel+1)
-            stream_source = f"rtsp://{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}&token={self._token}"
+            stream_source = f"rtsp://{self._username}{password}@{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}"
 
         return stream_source
 
@@ -469,19 +480,21 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 "cmd": "Login",
                 "action": 0,
                 "param": {
-                    "User": {"userName": self._username, "password": self._password}
+                    "User": {"userName": self._username, "password": self._password[:31]}
                 },
             }
         ]
         param = {"cmd": "Login", "token": "null"}
 
         response = await self.send(body, param)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
             _LOGGER.debug("Get response from %s: %s", self._host, json_data)
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating login response to json")
+            _LOGGER.debug("Host %s: Error translating login response to json", self._host)
             return False
 
         if json_data is not None:
@@ -496,7 +509,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 )
                 return True
 
-        _LOGGER.error("Failed to login at IP %s. Connection error.", self._host)
+        _LOGGER.debug("Failed to login at IP %s.", self._host)
         return False
 
     async def is_admin(self):
@@ -537,7 +550,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
     async def set_timeout(self, timeout):
         """Update the timeout property."""
-        self._timeout = timeout
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
 
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
@@ -741,6 +754,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             command, self._host, body
         )
         response = await self.send(body, {"cmd": command})
+        if response is None:
+            return False
+
         try:
             json_data = json.loads(response)
             _LOGGER.debug("Response from %s: %s", self._host, json_data)
@@ -752,10 +768,10 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
             return False
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating %s response to json", command)
+            _LOGGER.debug("Host %s: Error translating %s response to json", self._host, command)
             return False
         except KeyError:
-            _LOGGER.error("Received an unexpected response while sending command: %s", command)
+            _LOGGER.debug("Host %s: Received an unexpected response while sending command: %s", self._host, command)
             return False
 
     async def send(self, body, param=None):
@@ -781,5 +797,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     ) as response:
                         json_data = await response.text()
                         return json_data
+
+        except aiohttp.ClientConnectorError as conn_err:
+            _LOGGER.debug('Host %s: Connection error %s', self._host, str(conn_err))
+        except asyncio.TimeoutError:
+            _LOGGER.debug('Host %s: connection timeout exception. Please check the connection to this camera.', self._host)
         except: #pylint: disable=bare-except
-            return ""
+            _LOGGER.debug('Host %s: Unknown exception occurred.', self._host)
+        return

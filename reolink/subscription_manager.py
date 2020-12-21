@@ -9,10 +9,11 @@ import re
 import uuid
 
 import aiohttp
+import asyncio
 from . import templates
 
 TERMINATION_TIME = 15
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,12 +94,15 @@ class Manager:
                     if response.status == 200:
                         return response_xml
 
-                    return None
+                    return
 
-        except aiohttp.client_exceptions.ServerDisconnectedError:
-            return None
-        except aiohttp.client_exceptions.ClientConnectorError:
-            return None
+        except aiohttp.ClientConnectorError as conn_err:
+            _LOGGER.debug('Host %s: Connection error %s', self._host, str(conn_err))
+        except asyncio.TimeoutError:
+            _LOGGER.debug('Host %s: connection timeout exception. Please check the connection to this camera.', self._host)
+        except: #pylint: disable=bare-except
+            _LOGGER.debug('Host %s: Unknown exception occurred.', self._host)
+        return
 
     async def extract_value(self, data, element):
         """Extract a value from the XML file. Most efficient way"""
@@ -218,9 +222,7 @@ class Manager:
 
         xml = template.format(**parameters)
 
-        response = await self.send(headers, xml)
-        if response is None:
-            return False
+        await self.send(headers, xml)
 
         self._termination_time = None
         self._time_difference = 0
