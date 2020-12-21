@@ -39,7 +39,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._username = username
         self._password = password
         self._channel = channel
+        self._stream = stream
+        self._protocol = protocol
         self._timeout = aiohttp.ClientTimeout(total=timeout)
+
         self._token = None
         self._lease_time = None
         self._motion_state = False
@@ -77,8 +80,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         self._users = None
         self._local_link = None
-        self._stream = DEFAULT_STREAM
-        self._protocol = DEFAULT_PROTOCOL
         self._ptz_support = False
 
     @property
