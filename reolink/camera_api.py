@@ -289,7 +289,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating Reolink state response")
+            _LOGGER.debug("Host: %s: Error translating Reolink state response", self._host)
             await self.clear_token()
             return False
 
@@ -315,7 +315,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             await self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating Reolink settings response")
+            _LOGGER.debug("Host %s: Error translating Reolink settings response", self._host)
             await self.clear_token()
             return False
 
@@ -481,7 +481,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             json_data = json.loads(response)
             _LOGGER.debug("Get response from %s: %s", self._host, json_data)
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating login response to json")
+            _LOGGER.debug("Host %s: Error translating login response to json", self._host)
             return False
 
         if json_data is not None:
@@ -752,10 +752,10 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
 
             return False
         except (TypeError, json.JSONDecodeError):
-            _LOGGER.error("Error translating %s response to json", command)
+            _LOGGER.debug("Host %s: Error translating %s response to json", self._host, command)
             return False
         except KeyError:
-            _LOGGER.error("Received an unexpected response while sending command: %s", command)
+            _LOGGER.debug("Host %s: Received an unexpected response while sending command: %s", self._host, command)
             return False
 
     async def send(self, body, param=None):
