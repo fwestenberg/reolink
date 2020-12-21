@@ -469,7 +469,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 "cmd": "Login",
                 "action": 0,
                 "param": {
-                    "User": {"userName": self._username, "password": self._password}
+                    "User": {"userName": self._username, "password": self._password[:31]}
                 },
             }
         ]
