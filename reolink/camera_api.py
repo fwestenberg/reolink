@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import asyncio
 import aiohttp
+import urllib.parse as parse
 
 MANUFACTURER = "Reolink"
 DEFAULT_STREAM = "main"
@@ -373,8 +374,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         if self.protocol == DEFAULT_PROTOCOL:
             stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
         else:
+            password = parse.quote(self._password)
             channel = "{:02d}".format(self._channel+1)
-            stream_source = f"rtsp://{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}&token={self._token}"
+            stream_source = f"rtsp://{self._username}{password}@{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}"
 
         return stream_source
 
