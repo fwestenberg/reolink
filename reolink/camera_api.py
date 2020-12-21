@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
+import asyncio
 import aiohttp
 
 MANUFACTURER = "Reolink"
@@ -284,6 +285,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     body.pop(x)
 
         response = await self.send(body)
+        if response is None:
+            return False
+
         try:
             json_data = json.loads(response)
             await self.map_json_response(json_data)
@@ -309,6 +313,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         ]
 
         response = await self.send(body)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
@@ -324,6 +330,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         body = [{"cmd": "GetMdState", "action": 0, "param": {"channel": self._channel}}]
 
         response = await self.send(body)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
@@ -346,10 +354,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
     async def get_still_image(self):
         """Get the still image."""
         param = {"cmd": "Snap", "channel": self._channel}
-        response = await self.send(None, param)
 
+        response = await self.send(None, param)
         if response is None or response == b'':
             return
+
         return response
 
     async def get_snapshot(self):
@@ -476,6 +485,8 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
         param = {"cmd": "Login", "token": "null"}
 
         response = await self.send(body, param)
+        if response is None:
+            return False
 
         try:
             json_data = json.loads(response)
@@ -496,7 +507,7 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                 )
                 return True
 
-        _LOGGER.error("Failed to login at IP %s. Connection error.", self._host)
+        _LOGGER.debug("Failed to login at IP %s.", self._host)
         return False
 
     async def is_admin(self):
@@ -741,6 +752,9 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
             command, self._host, body
         )
         response = await self.send(body, {"cmd": command})
+        if response is None:
+            return False
+
         try:
             json_data = json.loads(response)
             _LOGGER.debug("Response from %s: %s", self._host, json_data)
@@ -781,5 +795,11 @@ class Api: #pylint: disable=too-many-instance-attributes disable=too-many-public
                     ) as response:
                         json_data = await response.text()
                         return json_data
+
+        except aiohttp.ClientConnectorError as conn_err:
+            _LOGGER.debug('Host %s: Connection error %s', self._host, str(conn_err))
+        except asyncio.TimeoutError:
+            _LOGGER.debug('Host %s: connection timeout exception. Please check the connection to this camera.', self._host)
         except: #pylint: disable=bare-except
-            return ""
+            _LOGGER.debug('Host %s: Unknown exception occurred.', self._host)
+        return
