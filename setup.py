@@ -8,7 +8,7 @@ setup(
   author = 'fwestenberg',
   author_email = '',
   url = 'https://github.com/fwestenberg/reolink',
-  download_url = 'https://github.com/fwestenberg/reolink/archive/v_014.tar.gz',
+  download_url = 'https://github.com/fwestenberg/reolink/releases/latest',
   keywords = ['Reolink', 'Home-Assistant'],
   install_requires=[
           'ffmpeg',
