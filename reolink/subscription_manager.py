@@ -23,7 +23,7 @@ class Manager:
     def __init__(self, host, port, username, password, timeout=DEFAULT_TIMEOUT):
         self._host = host
         self._username = username
-        self._password = password
+        self._password = password[:31]
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._subscribe_url = f"http://{host}:{port}"
         self._manager_url = None
