@@ -23,9 +23,9 @@ class Manager:
     def __init__(self, host, port, username, password, timeout=DEFAULT_TIMEOUT):
         self._host = host
         self._username = username
-        self._password = password
+        self._password = password[:31]
         self._timeout = aiohttp.ClientTimeout(total=timeout)
-        self._subscribe_url = f"http://{host}:{port}"
+        self._subscribe_url = f"http://{host}:{port}/onvif/event_service"
         self._manager_url = None
         self._termination_time = None
         self._time_difference = None
