@@ -14,6 +14,7 @@ DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
 DEFAULT_TIMEOUT = 30
+DEFAULT_STREAM_FORMAT = "h264"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         protocol=DEFAULT_PROTOCOL,
         stream=DEFAULT_STREAM,
         timeout=DEFAULT_TIMEOUT,
+        stream_format=DEFAULT_STREAM_FORMAT,
     ):
         """Initialize the API class."""
         self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
@@ -41,6 +43,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._channel = channel
         self._stream = stream
         self._protocol = protocol
+        self._stream_format = stream_format
         self._timeout = aiohttp.ClientTimeout(total=timeout)
 
         self._token = None
@@ -206,7 +209,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def protocol(self):
         """Return the protocol."""
         return self._protocol
-
+    
+    @property
+    def stream_format(self):
+        """Return the stream format."""
+        return self._stream_format
+    
     @property
     def channel(self):
         """Return the channel number."""
@@ -390,7 +398,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             password = parse.quote(self._password)
             channel = "{:02d}".format(self._channel + 1)
-            stream_source = f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/h264Preview_{channel}_{self._stream}"
+            stream_source = f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/{self._stream_format}Preview_{channel}_{self._stream}"
 
         return stream_source
 
@@ -572,6 +580,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     async def set_protocol(self, protocol):
         """Update the protocol property."""
         self._protocol = protocol
+        
+    async def set_stream_format(self, stream_format):
+        """Update the stream format property."""
+        self._stream_format = stream_format
 
     async def set_timeout(self, timeout):
         """Update the timeout property."""
