@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name = 'reolink',
   packages = ['reolink'],
-  version = '0.0.15',
+  version = '0.0.16',
   license='MIT',
   description = 'Reolink camera package',
   author = 'fwestenberg',
@@ -25,6 +25,5 @@ setup(
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9'
-
   ],
 )
