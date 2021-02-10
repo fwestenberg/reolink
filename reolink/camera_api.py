@@ -39,7 +39,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._host = host
         self._port = port
         self._username = username
-        self._password = password
+        self._password = password[:31]
         self._channel = channel
         self._stream = stream
         self._protocol = protocol
@@ -506,7 +506,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "param": {
                     "User": {
                         "userName": self._username,
-                        "password": self._password[:31],
+                        "password": self._password,
                     }
                 },
             }
