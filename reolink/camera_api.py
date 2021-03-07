@@ -4,6 +4,8 @@ Reolink Camera API
 import json
 import logging
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+from . import typings
 
 import asyncio
 import aiohttp
@@ -209,12 +211,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def protocol(self):
         """Return the protocol."""
         return self._protocol
-    
+
     @property
     def stream_format(self):
         """Return the stream format."""
         return self._stream_format
-    
+
     @property
     def channel(self):
         """Return the channel number."""
@@ -402,6 +404,18 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         return stream_source
 
+    async def get_vod_source(self, filename: str):
+        """Return the vod source url."""
+        if not await self.login():
+            return
+
+        if self.protocol == DEFAULT_PROTOCOL:
+            stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename}?channel={self._channel}&stream=0&token={self._token}"
+        else:
+            stream_source = None
+
+        return stream_source
+
     async def map_json_response(self, json_data):  # pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
         for data in json_data:
@@ -580,7 +594,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     async def set_protocol(self, protocol):
         """Update the protocol property."""
         self._protocol = protocol
-        
+
     async def set_stream_format(self, stream_format):
         """Update the stream format property."""
         self._stream_format = stream_format
@@ -780,6 +794,76 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if preset:
             body[0]["param"]["id"] = preset
         return await self.send_setting(body)
+
+    async def send_search(
+        self, start: datetime, end: datetime, only_status: bool = False
+    ) -> Tuple[List[typings.SearchStatus], Optional[List[typings.SearchFile]]]:
+        """Send search command."""
+        body = [
+            {
+                "cmd": "Search",
+                "action": 0,
+                "param": {
+                    "Search": {
+                        "channel": self._channel,
+                        "onlyStatus": 0 if not only_status else 1,
+                        "streamType": self._stream,
+                        "StartTime": {
+                            "year": start.year,
+                            "mon": start.month,
+                            "day": start.day,
+                            "hour": start.hour,
+                            "min": start.minute,
+                            "sec": start.second,
+                        },
+                        "EndTime": {
+                            "year": end.year,
+                            "mon": end.month,
+                            "day": end.day,
+                            "hour": end.hour,
+                            "min": end.minute,
+                            "sec": end.second,
+                        },
+                    }
+                },
+            }
+        ]
+
+        command = body[0]["cmd"]
+        _LOGGER.debug(
+            "Sending command: %s to: %s with body: %s", command, self._host, body
+        )
+        response = await self.send(body, {"cmd": command})
+        if response is None:
+            return None, None
+
+        try:
+            json_data = json.loads(response)
+            _LOGGER.debug("Response from %s: %s", self._host, json_data)
+        except (TypeError, json.JSONDecodeError):
+            _LOGGER.debug(
+                "Host %s: Error translating %s response to json", self._host, command
+            )
+            return None, None
+        except KeyError as key_error:
+            _LOGGER.debug(
+                "Host %s: Received an unexpected response while sending command: %s, %s",
+                self._host,
+                command,
+                key_error,
+            )
+            return None, None
+
+        if json_data is not None:
+            if json_data[0]["code"] == 0:
+                search_result = json_data[0]["value"]["SearchResult"]
+                if only_status:
+                    return search_result["Status"], None
+
+                return search_result["Status"], search_result["File"]
+
+        _LOGGER.debug("Host: %s: Failed to get results for %s", self._host, command)
+        return None, None
 
     async def send_setting(self, body):
         """Send a setting."""
