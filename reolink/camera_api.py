@@ -409,8 +409,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if not await self.login():
             return
 
+        """
+        REOLink uses an odd encoding, if the camera provides a / in the filename it needs
+        to be encoded with %20
+        """
         if self.protocol == DEFAULT_PROTOCOL:
-            stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename}?channel={self._channel}&stream=0&token={self._token}"
+            stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename.replace('/', '%20')}?channel={self._channel}&stream=0&token={self._token}"
         else:
             stream_source = None
 

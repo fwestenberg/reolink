@@ -2,28 +2,23 @@
 
 from typing import TypedDict
 
+SearchStatus = TypedDict("SearchStatus", {"mon": int, "table": str, "year": int})
 
-class SearchStatus(TypedDict):
-    mon: int
-    table: str
-    year: int
+SearchTime = TypedDict(
+    "SearchTime",
+    {"year": int, "mon": int, "day": int, "hour": int, "min": int, "sec": int},
+)
 
-
-class SearchTime(TypedDict):
-    year: int
-    mon: int
-    day: int
-    hour: int
-    min: int
-    sec: int
-
-
-class SearchFile(TypedDict):
-    StartTime: SearchTime
-    EndTime: SearchTime
-    frameRate: int
-    height: int
-    name: str
-    size: int
-    type: str
-    width: int
+SearchFile = TypedDict(
+    "SearchFile",
+    {
+        "StartTime": SearchTime,
+        "EndTime": SearchTime,
+        "frameRate": int,
+        "height": int,
+        "width": int,
+        "name": str,
+        "size": int,
+        "type": str,
+    },
+)
