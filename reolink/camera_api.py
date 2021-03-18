@@ -57,6 +57,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._email_state = None
         self._ir_state = None
         self._daynight_state = None
+        self.__backlight_state = None
         self._recording_state = None
         self._audio_state = None
         self._rtsp_port = None
@@ -163,6 +164,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._daynight_state
 
     @property
+    def backlight_state(self):
+        """Return the backlight state."""
+        return self._backlight_state
+
+    @property
     def recording_state(self):
         """Return the recording state."""
         return self._recording_state
@@ -265,6 +271,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if self._daynight_state is not None:
             capabilities.append("dayNight")
+
+        if self._backlight_state is not None:
+            capabilities.append("backLight")
 
         if self._email_state is not None:
             capabilities.append("email")
@@ -472,6 +481,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetIsp":
                     self._isp_settings = data
                     self._daynight_state = data["value"]["Isp"]["dayNight"]
+                    self._backlight_state = data["value"]["Isp"]["backLight"]
 
                 elif data["cmd"] == "GetIrLights":
                     self._ir_settings = data
@@ -689,6 +699,23 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         body = [{"cmd": "SetIsp", "action": 0, "param": self._isp_settings["value"]}]
         body[0]["param"]["Isp"]["dayNight"] = new_value
+
+        return await self.send_setting(body)
+
+    async def set_backlight(self, value):
+        """Set the backlight parameter."""
+        if not self._isp_settings:
+            _LOGGER.error("Actual ISP settings not available")
+            return False
+
+        if value not in ["BackLightControl", "DynamicRangeControl", "Off"]:
+            _LOGGER.error("Invalid input: %s", value)
+            return False
+
+        new_value = value
+
+        body = [{"cmd": "SetIsp", "action": 0, "param": self._isp_settings["value"]}]
+        body[0]["param"]["Isp"]["backLight"] = new_value
 
         return await self.send_setting(body)
 
