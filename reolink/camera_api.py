@@ -445,7 +445,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._channels = data["value"]["DevInfo"]["channelNum"]
 
                 elif data["cmd"] == "GetHddInfo":
-                    self._hdd_info = data
+                    self._hdd_info = data["value"]["HddInfo"]
 
                 elif data["cmd"] == "GetLocalLink":
                     self._local_link = data
@@ -888,7 +888,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if json_data is not None:
             if json_data[0]["code"] == 0:
                 search_result = json_data[0]["value"]["SearchResult"]
-                if only_status:
+                if only_status or "File" not in search_result:
                     return search_result["Status"], None
 
                 return search_result["Status"], search_result["File"]
