@@ -1,0 +1,9 @@
+{
+  "domain": "reolink",
+  "name": "Reolink",
+  "version":"v0.17",
+  "documentation": "https://github.com/fwestenberg/reolink",
+  "dependencies": ["camera"],
+  "codeowners": ["@fwestenberg"],
+  "requirements": []
+}
