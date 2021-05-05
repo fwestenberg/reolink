@@ -57,7 +57,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._email_state = None
         self._ir_state = None
         self._daynight_state = None
-        self.__backlight_state = None
+        self._backlight_state = None
         self._recording_state = None
         self._audio_state = None
         self._rtsp_port = None
