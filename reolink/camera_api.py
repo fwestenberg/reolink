@@ -51,6 +51,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._token = None
         self._lease_time = None
         self._motion_state = False
+        self._ai_state = None
         self._device_info = None
         self._hdd_info = None
         self._ftp_state = None
@@ -142,6 +143,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def motion_state(self):
         """Return the motion state (polling)."""
         return self._motion_state
+
+    @property
+    def ai_state(self):
+        """Return the AI state."""
+        return self._ai_state
 
     @property
     def ftp_state(self):
@@ -385,6 +391,29 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         return self._motion_state
 
+    async def get_ai_state(self):
+        """Fetch the AI state."""
+        body = [{"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}}]
+
+        response = await self.send(body)
+        if response is None:
+            return False
+
+        try:
+            json_data = json.loads(response)
+
+            if json_data is None:
+                _LOGGER.error(
+                    "Unable to get AI detection state at IP %s", self._host
+                )            
+                return self._ai_state
+
+            await self.map_json_response(json_data)
+        except (TypeError, json.JSONDecodeError):
+            await self.clear_token()
+
+        return self._ai_state
+
     async def get_still_image(self):
         """Get the still image."""
         param = {"cmd": "Snap", "channel": self._channel}
@@ -434,7 +463,13 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 if data["code"] == 1:  # -->Error, like "ability error"
                     continue
 
-                if data["cmd"] == "GetDevInfo":
+                if data["cmd"] == "GetMdState":
+                    self._motion_state = json_data[0]["value"]["state"] == 1
+
+                elif data["cmd"] == "GetAiState":
+                    self._ai_state = json_data[0]["value"]
+
+                elif data["cmd"] == "GetDevInfo":
                     self._device_info = data
                     self._serial = data["value"]["DevInfo"]["serial"]
                     self._device_name = data["value"]["DevInfo"]["name"]
@@ -503,9 +538,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._alarm_settings = data
                     self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
                     self._sensitivity_presets = data["value"]["Alarm"]["sens"]
-
-                elif data["cmd"] == "GetMdState":
-                    self._motion_state = json_data[0]["value"]["state"] == 1
 
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
