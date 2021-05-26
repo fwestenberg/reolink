@@ -147,13 +147,18 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._motion_state
 
     @property
+    def ai_state(self):
+        """Return the AI state."""
+        return self._ai_state
+
+    @property
     def people_state(self):
-        """Return the people state (polling)."""
+        """Return the people state."""
         return self._people_state
 
     @property
     def vehicle_state(self):
-        """Return the vehicle state (polling)."""
+        """Return the vehicle state."""
         return self._vehicle_state
 
     @property
