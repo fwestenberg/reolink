@@ -52,8 +52,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._lease_time = None
         self._motion_state = False
         self._ai_state = None
-        self._people_state = None
-        self._vehicle_state = None
         self._device_info = None
         self._hdd_info = None
         self._ftp_state = None
@@ -150,16 +148,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def ai_state(self):
         """Return the AI state."""
         return self._ai_state
-
-    @property
-    def people_state(self):
-        """Return the people state."""
-        return self._people_state
-
-    @property
-    def vehicle_state(self):
-        """Return the vehicle state."""
-        return self._vehicle_state
 
     @property
     def ftp_state(self):
@@ -417,16 +405,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             if json_data is None:
                 _LOGGER.error(
                     "Unable to get AI detection state at IP %s", self._host
-                )
-                self._people_state = False
-                self._vehicle_state = False                
+                )            
                 return self._ai_state
 
             await self.map_json_response(json_data)
         except (TypeError, json.JSONDecodeError):
             await self.clear_token()
-            self._people_state = False
-            self._vehicle_state = False
 
         return self._ai_state
 
@@ -484,8 +468,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetAiState":
                     self._ai_state = json_data[0]["value"]
-                    self._people_state = json_data[0]["value"]["people_state"] == 1
-                    self._vehicle_state = json_data[0]["value"]["vehicle_state"] == 1
 
                 elif data["cmd"] == "GetDevInfo":
                     self._device_info = data
