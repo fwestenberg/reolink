@@ -17,6 +17,7 @@ DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
 DEFAULT_TIMEOUT = 30
 DEFAULT_STREAM_FORMAT = "h264"
+DEFAULT_STREAM_USE_PASS = True
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         stream=DEFAULT_STREAM,
         timeout=DEFAULT_TIMEOUT,
         stream_format=DEFAULT_STREAM_FORMAT,
+        stream_use_pass=DEFAULT_STREAM_USE_PASS,
     ):
         """Initialize the API class."""
         self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
@@ -46,6 +48,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._stream = stream
         self._protocol = protocol
         self._stream_format = stream_format
+        self._stream_use_pass = stream_use_pass
         self._timeout = aiohttp.ClientTimeout(total=timeout)
 
         self._token = None
@@ -434,7 +437,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             return
 
         if self.protocol == DEFAULT_PROTOCOL:
-            stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
+            if self.stream_use_pass == DEFAULT_STREAM_USE_PASS:
+                stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&user={self._username}&password={self._password}"
+            else:
+                stream_source = f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
         else:
             password = parse.quote(self._password)
             channel = "{:02d}".format(self._channel + 1)
