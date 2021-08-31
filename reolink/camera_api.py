@@ -58,6 +58,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._device_info = None
         self._hdd_info = None
         self._ftp_state = None
+        self._push_state = None
         self._email_state = None
         self._ir_state = None
         self._daynight_state = None
@@ -79,6 +80,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         self._isp_settings = None
         self._ftp_settings = None
+        self._push_settings = None
         self._enc_settings = None
         self._ptz_presets_settings = None
         self._ability_settings = None
@@ -156,6 +158,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def ftp_state(self):
         """Return the FTP state."""
         return self._ftp_state
+
+    @property
+    def push_state(self):
+        """Return the PUSH (notifications) state."""
+        return self._push_state
 
     @property
     def email_state(self):
@@ -269,6 +276,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._ftp_state is not None:
             capabilities.append("ftp")
 
+        if self._push_state is not None:
+            capabilities.append("push")
+
         if self._ir_state is not None:
             capabilities.append("irLights")
 
@@ -305,6 +315,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         """Fetch the state objects."""
         body = [
             {"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEnc", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIsp", "action": 1, "param": {"channel": self._channel}},
@@ -507,6 +518,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ftp_settings = data
                     self._ftp_state = data["value"]["Ftp"]["schedule"]["enable"] == 1
 
+                elif data["cmd"] == "GetPush":
+                    self._push_settings = data
+                    self._push_state = data["value"]["Push"]["schedule"]["enable"] == 1
+
                 elif data["cmd"] == "GetEnc":
                     self._enc_settings = data
                     self._audio_state = data["value"]["Enc"]["audio"] == 1
@@ -666,6 +681,22 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
         body[0]["param"]["Ftp"]["schedule"]["enable"] = new_value
+
+        return await self.send_setting(body)
+
+    async def set_push(self, enable):
+        """Set the PUSH (notifications) parameter."""
+        if not self._push_settings:
+            _LOGGER.error("Actual PUSH settings not available")
+            return False
+
+        if enable:
+            new_value = 1
+        else:
+            new_value = 0
+
+        body = [{"cmd": "SetPush", "action": 0, "param": self._push_settings["value"]}]
+        body[0]["param"]["Push"]["schedule"]["enable"] = new_value
 
         return await self.send_setting(body)
 
