@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from . import typings
+from .software_version import SoftwareVersion
+import traceback
 
 import asyncio
 import aiohttp
@@ -20,6 +22,9 @@ DEFAULT_STREAM_FORMAT = "h264"
 DEFAULT_RTMP_AUTH_METHOD = 'PASSWORD'
 
 _LOGGER = logging.getLogger(__name__)
+
+
+ref_sw_version_3_0_0_0_0 = SoftwareVersion("v3.0.0.0_0")
 
 
 class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
@@ -72,6 +77,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._serial = None
         self._name = None
         self._sw_version = None
+        self._sw_version_object: Optional[SoftwareVersion] = None
         self._model = None
         self._channels = None
         self._ptz_presets = dict()
@@ -315,7 +321,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         """Fetch the state objects."""
         body = [
             {"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEnc", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIsp", "action": 1, "param": {"channel": self._channel}},
@@ -329,6 +334,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
         ]
+
+        if self._sw_version_object is not None and self._sw_version_object > ref_sw_version_3_0_0_0_0:
+            body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -489,10 +499,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetDevInfo":
                     self._device_info = data
                     self._serial = data["value"]["DevInfo"]["serial"]
-                    self._device_name = data["value"]["DevInfo"]["name"]
+                    self._name = data["value"]["DevInfo"]["name"]
                     self._sw_version = data["value"]["DevInfo"]["firmVer"]
                     self._model = data["value"]["DevInfo"]["model"]
                     self._channels = data["value"]["DevInfo"]["channelNum"]
+                    self._sw_version_object = SoftwareVersion(self._sw_version)
 
                 elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data["value"]["HddInfo"]
@@ -521,6 +532,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetPush":
                     self._push_settings = data
                     self._push_state = data["value"]["Push"]["schedule"]["enable"] == 1
+
+                elif data["cmd"] == "GetPushV20":
+                    self._push_settings = data
+                    self._push_state = data["value"]["Push"]["enable"] == 1
 
                 elif data["cmd"] == "GetEnc":
                     self._enc_settings = data
@@ -563,7 +578,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
                         self._ptz_support = ability["ptzCtrl"]["permit"] != 0
+
             except:  # pylint: disable=bare-except
+                _LOGGER.error(traceback.format_exc())
                 continue
 
     async def login(self):
@@ -684,7 +701,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         return await self.send_setting(body)
 
-    async def set_push(self, enable):
+    async def set_push(self, enable: bool):
         """Set the PUSH (notifications) parameter."""
         if not self._push_settings:
             _LOGGER.error("Actual PUSH settings not available")
@@ -695,8 +712,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        body = [{"cmd": "SetPush", "action": 0, "param": self._push_settings["value"]}]
-        body[0]["param"]["Push"]["schedule"]["enable"] = new_value
+        if self._sw_version_object is not None and self._sw_version_object > ref_sw_version_3_0_0_0_0:
+            body = [{"cmd": "SetPushV20", "action": 0, "param": self._push_settings["value"]}]
+            body[0]["param"]["Push"]["enable"] = new_value
+        else:
+            body = [{"cmd": "SetPush", "action": 0, "param": self._push_settings["value"]}]
+            body[0]["param"]["Push"]["schedule"]["enable"] = new_value
 
         return await self.send_setting(body)
 
