@@ -333,12 +333,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "action": 1,
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
+            {"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}},
         ]
-
-        if self._sw_version_object is not None and self._sw_version_object > ref_sw_version_3_0_0_0_0:
-            body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
-        else:
-            body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -485,6 +482,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
     async def map_json_response(self, json_data):  # pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
+
+        push_data = None
+        pushv20_data = None
+
         for data in json_data:
             try:
                 if data["code"] == 1:  # -->Error, like "ability error"
@@ -530,12 +531,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ftp_state = data["value"]["Ftp"]["schedule"]["enable"] == 1
 
                 elif data["cmd"] == "GetPush":
-                    self._push_settings = data
-                    self._push_state = data["value"]["Push"]["schedule"]["enable"] == 1
+                    push_data = data
 
                 elif data["cmd"] == "GetPushV20":
-                    self._push_settings = data
-                    self._push_state = data["value"]["Push"]["enable"] == 1
+                    pushv20_data = data
 
                 elif data["cmd"] == "GetEnc":
                     self._enc_settings = data
@@ -582,6 +581,13 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             except:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
+
+        if pushv20_data is not None:
+            self._push_settings = pushv20_data
+            self._push_state = pushv20_data["value"]["Push"]["enable"] == 1
+        elif push_data is not None:
+            self._push_settings = push_data
+            self._push_state = push_data["value"]["Push"]["schedule"]["enable"] == 1
 
     async def login(self):
         """Login and store the session ."""
