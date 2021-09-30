@@ -103,8 +103,14 @@ class SoftwareVersion:
     def __lt__(self, other):
         return self.is_lower_than(other)
 
+    def __le__(self, other):
+        return self.is_lower_or_equal_than(other)
+
     def __gt__(self, other):
         return self.is_greater_than(other)
+
+    def __ge__(self, other):
+        return self.is_greater_or_equal_than(other)
 
     def __eq__(self, target_version):
         if target_version.major == self.major and target_version.middle == self.middle and \
