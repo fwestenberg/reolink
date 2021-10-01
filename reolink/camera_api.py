@@ -22,6 +22,7 @@ DEFAULT_STREAM_FORMAT = "h264"
 DEFAULT_RTMP_AUTH_METHOD = 'PASSWORD'
 
 _LOGGER = logging.getLogger(__name__)
+_LOGGER_DATA = logging.getLogger(__name__+".data")
 
 
 ref_sw_version_3_0_0_0_0 = SoftwareVersion("v3.0.0.0_0")
@@ -1038,13 +1039,22 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             if body is None:
                 async with aiohttp.ClientSession(timeout=self._timeout) as session:
                     async with session.get(url=self._url, params=param) as response:
-                        return await response.read()
+                        _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
+                        json_data = await response.read()
+                        _LOGGER.debug("send HTTP Response status=%s", str(response.status))
+                        _LOGGER_DATA.debug("send() HTTP Response data: %s", str(json_data))
+
+                        return json_data
             else:
                 async with aiohttp.ClientSession(timeout=self._timeout) as session:
                     async with session.post(
                         url=self._url, json=body, params=param
                     ) as response:
+                        _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
+                        _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
                         json_data = await response.text()
+                        _LOGGER.debug("send() HTTP Response status=%s", str(response.status))
+                        _LOGGER_DATA.debug("send() HTTP Response data: %s", str(json_data))
                         return json_data
 
         except aiohttp.ClientConnectorError as conn_err:
