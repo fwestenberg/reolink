@@ -1042,7 +1042,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                         json_data = await response.read()
                         _LOGGER.debug("send HTTP Response status=%s", str(response.status))
-                        _LOGGER_DATA.debug("send() HTTP Response data: %s", str(json_data))
+                        if param.get("cmd") == "Snap":
+                            _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
+                        else:
+                            _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                         return json_data
             else:
@@ -1054,7 +1057,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
                         json_data = await response.text()
                         _LOGGER.debug("send() HTTP Response status=%s", str(response.status))
-                        _LOGGER_DATA.debug("send() HTTP Response data: %s", str(json_data))
+                        if param.get("cmd") == "Search" and len(json_data) > 500:
+                            _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
+                        else:
+                            _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
                         return json_data
 
         except aiohttp.ClientConnectorError as conn_err:
