@@ -971,7 +971,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             json_data = json.loads(response)
-            _LOGGER.debug("Response from %s: %s", self._host, json_data)
         except (TypeError, json.JSONDecodeError):
             _LOGGER.debug(
                 "Host %s: Error translating %s response to json", self._host, command
