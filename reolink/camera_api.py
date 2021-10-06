@@ -101,6 +101,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._local_link = None
         self._ptz_support = False
 
+        self._is_nvr = False
+
     @property
     def host(self):
         """Return the host."""
@@ -335,8 +337,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
             {"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}},
         ]
+
+        if not self._is_nvr:
+            # NVR would crash without this
+            body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -506,6 +511,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._model = data["value"]["DevInfo"]["model"]
                     self._channels = data["value"]["DevInfo"]["channelNum"]
                     self._sw_version_object = SoftwareVersion(self._sw_version)
+                    self._is_nvr = data["value"]["DevInfo"].get("exactType", "CAM") == "NVR"
 
                 elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data["value"]["HddInfo"]
@@ -1023,6 +1029,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 command,
             )
             return False
+
+    def is_nvr(self):
+        return self._is_nvr
 
     async def send(self, body, param=None):
         """Generic send method."""
