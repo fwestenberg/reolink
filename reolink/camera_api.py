@@ -14,6 +14,7 @@ import aiohttp
 import urllib.parse as parse
 
 MANUFACTURER = "Reolink"
+DEFAULT_USE_SSL = False
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
 DEFAULT_CHANNEL = 0
@@ -26,6 +27,7 @@ _LOGGER_DATA = logging.getLogger(__name__+".data")
 
 
 ref_sw_version_3_0_0_0_0 = SoftwareVersion("v3.0.0.0_0")
+ref_sw_version_3_1_0_0_0 = SoftwareVersion("v3.1.0.0_0")
 
 
 class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
@@ -37,6 +39,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         port,
         username,
         password,
+        use_https=DEFAULT_USE_SSL,
         channel=DEFAULT_CHANNEL,
         protocol=DEFAULT_PROTOCOL,
         stream=DEFAULT_STREAM,
@@ -45,7 +48,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         rtmp_auth_method=DEFAULT_RTMP_AUTH_METHOD,
     ):
         """Initialize the API class."""
-        self._url = f"http://{host}:{port}/cgi-bin/api.cgi"
+        self._url = ""
         self._host = host
         self._port = port
         self._username = username
@@ -56,6 +59,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._stream_format = stream_format
         self._rtmp_auth_method = rtmp_auth_method
         self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._use_https = use_https
 
         self._token = None
         self._lease_time = None
@@ -102,6 +106,18 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._ptz_support = False
 
         self._is_nvr = False
+
+        self.refresh_base_url()
+
+    def enable_https(self, enable: bool):
+        self._use_https = enable
+        self.refresh_base_url()
+
+    def refresh_base_url(self):
+        if self._use_https:
+            self._url = f"https://{self._host}:{self._port}/cgi-bin/api.cgi"
+        else:
+            self._url = f"http://{self._host}:{self._port}/cgi-bin/api.cgi"
 
     @property
     def host(self):
@@ -339,7 +355,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             {"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}},
         ]
 
-        if not self._is_nvr:
+        if not self._is_nvr and self._sw_version_object < ref_sw_version_3_1_0_0_0:
             # NVR would crash without this
             body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
 
@@ -971,7 +987,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             json_data = json.loads(response)
-            _LOGGER.debug("Response from %s: %s", self._host, json_data)
         except (TypeError, json.JSONDecodeError):
             _LOGGER.debug(
                 "Host %s: Error translating %s response to json", self._host, command
@@ -994,7 +1009,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 return search_result["Status"], search_result["File"]
 
-        _LOGGER.debug("Host: %s: Failed to get results for %s", self._host, command)
+        _LOGGER.warning("Host: %s: Failed to get results for %s, JSON data was was empty?", self._host, command)
         return None, None
 
     async def send_setting(self, body):
@@ -1046,8 +1061,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             if body is None:
-                async with aiohttp.ClientSession(timeout=self._timeout) as session:
-                    async with session.get(url=self._url, params=param) as response:
+                async with aiohttp.ClientSession(timeout=self._timeout,
+                                                 connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                    async with session.get(url=self._url, params=param, allow_redirects=False) as response:
                         _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                         json_data = await response.read()
                         _LOGGER.debug("send HTTP Response status=%s", str(response.status))
@@ -1058,9 +1074,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                         return json_data
             else:
-                async with aiohttp.ClientSession(timeout=self._timeout) as session:
+                async with aiohttp.ClientSession(timeout=self._timeout,
+                                                 connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
-                        url=self._url, json=body, params=param
+                        url=self._url, json=body, params=param, allow_redirects=False
                     ) as response:
                         _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                         _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
