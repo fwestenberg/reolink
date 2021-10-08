@@ -81,18 +81,26 @@ class Manager:
         """Send data to the camera."""
 
         try:
-            async with aiohttp.ClientSession(timeout=self._timeout) as session:
+            async with aiohttp.ClientSession(timeout=self._timeout,
+                                             connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                _LOGGER.debug(
+                    "Reolink host %s (Subscription) request data: %s",
+                    self._host, data
+                )
+
                 async with session.post(
-                    url=self._subscribe_url, data=data, headers=headers
+                    url=self._subscribe_url, data=data, headers=headers, allow_redirects=False
                 ) as response:
                     response_xml = await response.text()
 
                     _LOGGER.debug(
-                        "Reolink host %s got response status: %s. Payload: {%s}",
+                        "Reolink host %s (Subscription) got response status: %s. Payload: %s",
                         self._host, response.status, response_xml
                     )
                     if response.status == 200:
                         return response_xml
+                    else:
+                        _LOGGER.warning("Subscription process ended with wrong HTTP status: %s: %s", response.status, response.reason)
 
                     return
 
