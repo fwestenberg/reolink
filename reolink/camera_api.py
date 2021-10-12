@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from . import typings
 from .software_version import SoftwareVersion
+from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError
 import traceback
 
 import asyncio
@@ -292,7 +293,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._lease_time = None
         return False
 
-    async def clear_token(self):
+    def clear_token(self):
         """Initialize the token and lease time."""
         self._token = None
         self._lease_time = None
@@ -375,11 +376,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             json_data = json.loads(response)
             await self.map_json_response(json_data)
             return True
-        except (TypeError, json.JSONDecodeError):
+        except (TypeError, json.JSONDecodeError) as e:
             _LOGGER.debug(
-                "Host: %s: Error translating Reolink state response", self._host
+                "Host: %s: Error translating Reolink state response: e", self._host, e
             )
-            await self.clear_token()
+            self.clear_token()
             return False
 
     async def get_settings(self):
@@ -409,7 +410,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             _LOGGER.debug(
                 "Host %s: Error translating Reolink settings response", self._host
             )
-            await self.clear_token()
+            self.clear_token()
             return False
 
     async def get_motion_state(self):
@@ -432,7 +433,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
             await self.map_json_response(json_data)
         except (TypeError, json.JSONDecodeError):
-            await self.clear_token()
+            self.clear_token()
             self._motion_state = False
 
         return self._motion_state
@@ -456,7 +457,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
             await self.map_json_response(json_data)
         except (TypeError, json.JSONDecodeError):
-            await self.clear_token()
+            self.clear_token()
 
         return self._ai_state
 
@@ -464,7 +465,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         """Get the still image."""
         param = {"cmd": "Snap", "channel": self._channel}
 
-        response = await self.send(None, param)
+        response = await self.send(None, param, expected_content_type='image/jpeg')
         if response is None or response == b"":
             return
 
@@ -695,7 +696,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         param = {"cmd": "Logout"}
 
         await self.send(body, param)
-        await self.clear_token()
+        self.clear_token()
         await self._aiohttp_session.close()
 
     async def set_channel(self, channel):
@@ -1052,7 +1053,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def is_nvr(self):
         return self._is_nvr
 
-    async def send(self, body, param=None):
+    async def send(self, body, param=None, expected_content_type: Optional[str] = None):
         """Generic send method."""
         if body is None or (body[0]["cmd"] != "Login" and body[0]["cmd"] != "Logout"):
             if not await self.login():
@@ -1066,13 +1067,23 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         try:
             if body is None:
                 async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
-                    _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
+                    _LOGGER.debug("send() HTTP3 Request params =%s", str(param).replace(self._password, "<password>"))
                     json_data = await response.read()
-                    _LOGGER.debug("send HTTP Response status=%s", str(response.status))
+                    _LOGGER.debug("send() HTTP3 Response status=%s content-type=(%s)",
+                                  response.status, response.content_type)
+
                     if param.get("cmd") == "Snap":
                         _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
                     else:
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
+
+                    if len(json_data) < 500 and response.content_type == 'text/html':
+                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data:
+                            self.clear_token()
+                            raise CredentialsInvalidError()
+
+                    if expected_content_type is not None and response.content_type != expected_content_type:
+                        raise InvalidContentTypeError("expected '{}' but received '{}'".format(expected_content_type, response.content_type))
 
                     return json_data
             else:
@@ -1082,20 +1093,30 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                     _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
                     json_data = await response.text()
-                    _LOGGER.debug("send() HTTP Response status=%s", str(response.status))
+                    _LOGGER.debug("send() HTTP Response status=%s content-type=(%s)",
+                                  response.status, response.content_type)
                     if param.get("cmd") == "Search" and len(json_data) > 500:
                         _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
                     else:
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
+
+                    if len(json_data) < 500 and response.content_type == 'text/html':
+                        if '"detail" : "invalid user"' in json_data or '"detail" : "login failed"'  in json_data:
+                            self.clear_token()
+                            raise CredentialsInvalidError()
+
                     return json_data
 
         except aiohttp.ClientConnectorError as conn_err:
             _LOGGER.debug("Host %s: Connection error %s", self._host, str(conn_err))
+            raise
         except asyncio.TimeoutError:
             _LOGGER.debug(
                 "Host %s: connection timeout exception. Please check the connection to this camera.",
                 self._host,
             )
+            raise
         except:  # pylint: disable=bare-except
-            _LOGGER.debug("Host %s: Unknown exception occurred.", self._host)
+            _LOGGER.debug("Host %s: Unknown exception occurred: %s", self._host, traceback.format_exc())
+            raise
         return
