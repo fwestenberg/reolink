@@ -107,6 +107,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         self._is_nvr = False
 
+        self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
+                                                                             connector=aiohttp.TCPConnector(verify_ssl=False))
+
         self.refresh_base_url()
 
     def enable_https(self, enable: bool):
@@ -693,6 +696,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         await self.send(body, param)
         await self.clear_token()
+        await self._aiohttp_session.close()
 
     async def set_channel(self, channel):
         """Update the channel property."""
@@ -1061,33 +1065,29 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             if body is None:
-                async with aiohttp.ClientSession(timeout=self._timeout,
-                                                 connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                    async with session.get(url=self._url, params=param, allow_redirects=False) as response:
-                        _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
-                        json_data = await response.read()
-                        _LOGGER.debug("send HTTP Response status=%s", str(response.status))
-                        if param.get("cmd") == "Snap":
-                            _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
-                        else:
-                            _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
+                async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
+                    _LOGGER.debug("send()= HTTP Request params =%s", str(param).replace(self._password, "<password>"))
+                    json_data = await response.read()
+                    _LOGGER.debug("send HTTP Response status=%s", str(response.status))
+                    if param.get("cmd") == "Snap":
+                        _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
+                    else:
+                        _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
-                        return json_data
+                    return json_data
             else:
-                async with aiohttp.ClientSession(timeout=self._timeout,
-                                                 connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                    async with session.post(
+                async with self._aiohttp_session.post(
                         url=self._url, json=body, params=param, allow_redirects=False
-                    ) as response:
-                        _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
-                        _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
-                        json_data = await response.text()
-                        _LOGGER.debug("send() HTTP Response status=%s", str(response.status))
-                        if param.get("cmd") == "Search" and len(json_data) > 500:
-                            _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
-                        else:
-                            _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
-                        return json_data
+                ) as response:
+                    _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
+                    _LOGGER.debug("send() HTTP Request body =%s", str(body).replace(self._password, "<password>"))
+                    json_data = await response.text()
+                    _LOGGER.debug("send() HTTP Response status=%s", str(response.status))
+                    if param.get("cmd") == "Search" and len(json_data) > 500:
+                        _LOGGER_DATA.debug("send() HTTP Response data scrapped because it's too large")
+                    else:
+                        _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
+                    return json_data
 
         except aiohttp.ClientConnectorError as conn_err:
             _LOGGER.debug("Host %s: Connection error %s", self._host, str(conn_err))
