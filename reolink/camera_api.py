@@ -1067,9 +1067,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         try:
             if body is None:
                 async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
-                    _LOGGER.debug("send() HTTP3 Request params =%s", str(param).replace(self._password, "<password>"))
+                    _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                     json_data = await response.read()
-                    _LOGGER.debug("send() HTTP3 Response status=%s content-type=(%s)",
+                    _LOGGER.debug("send() HTTP Response status=%s content-type=(%s)",
                                   response.status, response.content_type)
 
                     if param.get("cmd") == "Snap":
