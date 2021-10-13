@@ -1078,7 +1078,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data:
+                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data or b'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
@@ -1101,7 +1101,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if '"detail" : "invalid user"' in json_data or '"detail" : "login failed"'  in json_data:
+                        if 'detail" : "invalid user' in json_data or 'detail" : "login failed' in json_data or 'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
