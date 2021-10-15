@@ -1010,9 +1010,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             if json_data[0]["code"] == 0:
                 search_result = json_data[0]["value"]["SearchResult"]
                 if only_status or "File" not in search_result:
-                    return search_result["Status"], None
-
-                return search_result["Status"], search_result["File"]
+                    if "Status" in search_result:
+                        return search_result["Status"], None
+                else:
+                    return search_result["Status"], search_result["File"]
 
         _LOGGER.warning("Host: %s: Failed to get results for %s, JSON data was was empty?", self._host, command)
         return None, None
