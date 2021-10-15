@@ -1010,9 +1010,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             if json_data[0]["code"] == 0:
                 search_result = json_data[0]["value"]["SearchResult"]
                 if only_status or "File" not in search_result:
-                    return search_result["Status"], None
-
-                return search_result["Status"], search_result["File"]
+                    if "Status" in search_result:
+                        return search_result["Status"], None
+                else:
+                    return search_result["Status"], search_result["File"]
 
         _LOGGER.warning("Host: %s: Failed to get results for %s, JSON data was was empty?", self._host, command)
         return None, None
@@ -1067,9 +1068,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         try:
             if body is None:
                 async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
-                    _LOGGER.debug("send() HTTP3 Request params =%s", str(param).replace(self._password, "<password>"))
+                    _LOGGER.debug("send() HTTP Request params =%s", str(param).replace(self._password, "<password>"))
                     json_data = await response.read()
-                    _LOGGER.debug("send() HTTP3 Response status=%s content-type=(%s)",
+                    _LOGGER.debug("send() HTTP Response status=%s content-type=(%s)",
                                   response.status, response.content_type)
 
                     if param.get("cmd") == "Snap":
@@ -1078,7 +1079,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data:
+                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data or b'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
@@ -1101,7 +1102,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if '"detail" : "invalid user"' in json_data or '"detail" : "login failed"'  in json_data:
+                        if 'detail" : "invalid user' in json_data or 'detail" : "login failed' in json_data or 'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
