@@ -1056,6 +1056,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
     async def send(self, body, param=None, expected_content_type: Optional[str] = None):
         """Generic send method."""
+
+        if self._aiohttp_session.closed:
+            self._aiohttp_session = aiohttp.ClientSession(timeout=self._timeout,
+                                                            connector=aiohttp.TCPConnector(verify_ssl=False))
+
         if body is None or (body[0]["cmd"] != "Login" and body[0]["cmd"] != "Logout"):
             if not await self.login():
                 return False
