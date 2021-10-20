@@ -348,7 +348,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             {"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIsp", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetIrLights", "action": 1, "param": {"channel": self._channel}},
-            {"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetPtzPreset", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetHddInfo", "action": 1, "param": {}},
             {
@@ -357,11 +356,13 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
             {"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}},
         ]
 
         if not self._is_nvr and self._sw_version_object < ref_sw_version_3_1_0_0_0:
             # NVR would crash without this
             body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
+            body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -587,7 +588,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._recording_state = (
                         data["value"]["Rec"]["schedule"]["enable"] == 1
                     )
-
+                elif data["cmd"] == "GetRecV20":
+                    self._recording_settings = data
+                    self._recording_state = (
+                            data["value"]["Rec"]["schedule"]["enable"] == 1
+                    )
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptz_presets_settings = data
                     for preset in data["value"]["PtzPreset"]:
