@@ -591,7 +591,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetRecV20":
                     self._recording_settings = data
                     self._recording_state = (
-                            data["value"]["Rec"]["schedule"]["enable"] == 1
+                            data["value"]["Rec"]["enable"] == 1
                     )
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptz_presets_settings = data
@@ -857,10 +857,16 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        body = [
-            {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
-        ]
-        body[0]["param"]["Rec"]["schedule"]["enable"] = new_value
+        if self._recording_settings["value"]["Rec"].get("enable") is not None:
+            body = [
+                {"cmd": "SetRecV20", "action": 0, "param": self._recording_settings["value"]}
+            ]
+            body[0]["param"]["Rec"]["enable"] = new_value
+        else:
+            body = [
+                {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
+            ]
+            body[0]["param"]["Rec"]["schedule"]["enable"] = new_value
 
         return await self.send_setting(body)
 
