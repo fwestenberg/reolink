@@ -9,6 +9,7 @@ from . import typings
 from .software_version import SoftwareVersion
 from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError
 import traceback
+import re
 
 import asyncio
 import aiohttp
@@ -107,6 +108,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._ptz_support = False
 
         self._is_nvr = False
+        self._is_ia_enabled = False
 
         self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
                                                                              connector=aiohttp.TCPConnector(verify_ssl=False))
@@ -132,6 +134,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def port(self):
         """Return the port."""
         return self._port
+
+    @property
+    def is_ia_enabled(self):
+        """Wether or not the camera support IA"""
+        return self._is_ia_enabled
 
     @property
     def onvif_port(self):
@@ -533,6 +540,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._channels = data["value"]["DevInfo"]["channelNum"]
                     self._sw_version_object = SoftwareVersion(self._sw_version)
                     self._is_nvr = data["value"]["DevInfo"].get("exactType", "CAM") == "NVR"
+                    if re.compile(r"^RLC-([0-9]+)A$").match(self._model) is not None:
+                        self._is_ia_enabled = True
 
                 elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data["value"]["HddInfo"]
