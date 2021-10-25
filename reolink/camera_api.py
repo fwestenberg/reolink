@@ -382,7 +382,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             json_data = json.loads(response)
-            await self.map_json_response(json_data)
+            self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError) as e:
             _LOGGER.debug(
@@ -412,7 +412,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         try:
             json_data = json.loads(response)
-            await self.map_json_response(json_data)
+            self.map_json_response(json_data)
             return True
         except (TypeError, json.JSONDecodeError):
             _LOGGER.debug(
@@ -439,7 +439,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 self._motion_state = False
                 return self._motion_state
 
-            await self.map_json_response(json_data)
+            self.map_json_response(json_data)
         except (TypeError, json.JSONDecodeError):
             self.clear_token()
             self._motion_state = False
@@ -463,11 +463,28 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 )            
                 return self._ai_state
 
-            await self.map_json_response(json_data)
+            self.map_json_response(json_data)
         except (TypeError, json.JSONDecodeError):
             self.clear_token()
 
         return self._ai_state
+
+    async def get_all_motion_states(self):
+        """Fetch All motions states at once (regular + AI)."""
+        body = [{"cmd": "GetMdState", "action": 0, "param": {"channel": self._channel}},
+                {"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}}]
+
+        response = await self.send(body)
+        json_data = json.loads(response)
+
+        if json_data is None:
+            _LOGGER.error(
+                "Unable to get All Motion States at IP %s", self._host
+            )
+            self._motion_state = False
+            return self._motion_state
+
+        self.map_json_response(json_data)
 
     async def get_still_image(self):
         """Get the still image."""
@@ -514,7 +531,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         return stream_source
 
-    async def map_json_response(self, json_data):  # pylint: disable=too-many-branches
+    def map_json_response(self, json_data):  # pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
 
         push_data = None
