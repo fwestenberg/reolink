@@ -404,6 +404,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "action": 1,
                 "param": {"User": {"userName": self._username}},
             },
+            {"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}},  # to capture AI capabilities
         ]
 
         response = await self.send(body)
@@ -547,6 +548,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetAiState":
                     self._ai_state = data["value"]
+                    self._is_ia_enabled = True
 
                 elif data["cmd"] == "GetDevInfo":
                     self._device_info = data
@@ -557,8 +559,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._channels = data["value"]["DevInfo"]["channelNum"]
                     self._sw_version_object = SoftwareVersion(self._sw_version)
                     self._is_nvr = data["value"]["DevInfo"].get("exactType", "CAM") == "NVR"
-                    if re.compile(r"^RLC-([0-9]+)A$").match(self._model) is not None:
-                        self._is_ia_enabled = True
 
                 elif data["cmd"] == "GetHddInfo":
                     self._hdd_info = data["value"]["HddInfo"]
