@@ -543,10 +543,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     continue
 
                 if data["cmd"] == "GetMdState":
-                    self._motion_state = json_data[0]["value"]["state"] == 1
+                    self._motion_state = data["value"]["state"] == 1
 
                 elif data["cmd"] == "GetAiState":
-                    self._ai_state = json_data[0]["value"]
+                    self._ai_state = data["value"]
 
                 elif data["cmd"] == "GetDevInfo":
                     self._device_info = data
