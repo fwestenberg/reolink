@@ -897,15 +897,16 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if self._api_version_getrec <= 1:
             body = [
+                {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
+            ]
+            body[0]["param"]["Rec"]["schedule"]["enable"] = new_value
+
+        else:
+            body = [
                 {"cmd": "SetRecV20", "action": 0, "param": self._recording_settings["value"]}
             ]
             body[0]["param"]["Rec"]["enable"] = new_value
 
-        else:
-            body = [
-                {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
-            ]
-            body[0]["param"]["Rec"]["schedule"]["enable"] = new_value
 
         return await self.send_setting(body)
 
