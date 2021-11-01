@@ -113,6 +113,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
                                                                              connector=aiohttp.TCPConnector(verify_ssl=False))
 
+        self._api_version_getrec: int = 0
+
         self.refresh_base_url()
 
     def enable_https(self, enable: bool):
@@ -299,6 +301,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._token = None
         self._lease_time = None
         return False
+
+    @property
+    def api_version_getrec(self):
+        return self._api_version_getrec
 
     def clear_token(self):
         """Initialize the token and lease time."""
@@ -537,6 +543,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         push_data = None
         pushv20_data = None
+        rec_data = None
+        recv20_data = None
 
         for data in json_data:
             try:
@@ -610,15 +618,19 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ir_state = data["value"]["IrLights"]["state"] == "Auto"
 
                 elif data["cmd"] == "GetRec":
-                    self._recording_settings = data
-                    self._recording_state = (
-                        data["value"]["Rec"]["schedule"]["enable"] == 1
-                    )
+                    if self._api_version_getrec <= 1:
+                        self._api_version_getrec = 1
+                        self._recording_settings = data
+                        self._recording_state = (
+                            data["value"]["Rec"]["schedule"]["enable"] == 1
+                        )
                 elif data["cmd"] == "GetRecV20":
-                    self._recording_settings = data
-                    self._recording_state = (
-                            data["value"]["Rec"]["enable"] == 1
-                    )
+                    if self._api_version_getrec <= 20:
+                        self._api_version_getrec = 20
+                        self._recording_settings = data
+                        self._recording_state = (
+                                data["value"]["Rec"]["enable"] == 1
+                        )
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptz_presets_settings = data
                     for preset in data["value"]["PtzPreset"]:
@@ -883,11 +895,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        if self._recording_settings["value"]["Rec"].get("enable") is not None:
+        if self._api_version_getrec <= 1:
             body = [
                 {"cmd": "SetRecV20", "action": 0, "param": self._recording_settings["value"]}
             ]
             body[0]["param"]["Rec"]["enable"] = new_value
+
         else:
             body = [
                 {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
