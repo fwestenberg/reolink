@@ -369,13 +369,17 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "action": 1,
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
-            {"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}},
         ]
 
         if self._api_version_getpush == 0:
             body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
         else:
             body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
+
+        if self._api_version_getrec == 0:
+            body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
