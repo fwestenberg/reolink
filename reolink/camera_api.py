@@ -4,7 +4,7 @@ Reolink Camera API
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from . import typings
 from .software_version import SoftwareVersion
 from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError
@@ -114,6 +114,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                                                                              connector=aiohttp.TCPConnector(verify_ssl=False))
 
         self._api_version_getrec: int = 0
+        self._api_version_getpush: int = 0
 
         self.refresh_base_url()
 
@@ -368,14 +369,13 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "action": 1,
                 "param": {"Alarm": {"channel": self._channel, "type": "md"}},
             },
-            {"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}},
         ]
 
-        if not self._is_nvr and (self._sw_version_object < ref_sw_version_3_1_0_0_0 or not self.is_ia_enabled):
-            # NVR would crash without this
+        if self._api_version_getpush == 0:
             body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
-            body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -624,19 +624,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ir_state = data["value"]["IrLights"]["state"] == "Auto"
 
                 elif data["cmd"] == "GetRec":
-                    if self._api_version_getrec <= 1:
-                        self._api_version_getrec = 1
-                        self._recording_settings = data
-                        self._recording_state = (
-                            data["value"]["Rec"]["schedule"]["enable"] == 1
-                        )
+                    self._recording_settings = data
+                    self._recording_state = (data["value"]["Rec"]["schedule"]["enable"] == 1)
                 elif data["cmd"] == "GetRecV20":
-                    if self._api_version_getrec <= 20:
-                        self._api_version_getrec = 20
-                        self._recording_settings = data
-                        self._recording_state = (
-                                data["value"]["Rec"]["enable"] == 1
-                        )
+                    self._recording_settings = data
+                    self._recording_state = (data["value"]["Rec"]["enable"] == 1)
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptz_presets_settings = data
                     for preset in data["value"]["PtzPreset"]:
@@ -653,6 +645,14 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
                         self._ptz_support = ability["ptzCtrl"]["permit"] != 0
+
+                    abilities: Dict[str, Any] = data["value"]["Ability"]
+
+                    for ability, details in abilities.items():
+                        if ability == 'push':
+                            self._api_version_getpush = details['ver']
+                        elif ability == 'supportRecordEnable':
+                            self._api_version_getrec = details['ver']
 
             except:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
@@ -795,12 +795,13 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        if self._sw_version_object is not None and self._sw_version_object > ref_sw_version_3_0_0_0_0:
-            body = [{"cmd": "SetPushV20", "action": 0, "param": self._push_settings["value"]}]
-            body[0]["param"]["Push"]["enable"] = new_value
-        else:
+        if self._api_version_getpush == 0:
             body = [{"cmd": "SetPush", "action": 0, "param": self._push_settings["value"]}]
             body[0]["param"]["Push"]["schedule"]["enable"] = new_value
+        else:
+            body = [{"cmd": "SetPushV20", "action": 0, "param": self._push_settings["value"]}]
+            body[0]["param"]["Push"]["enable"] = new_value
+
 
         return await self.send_setting(body)
 
@@ -901,7 +902,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        if self._api_version_getrec <= 1:
+        if self._api_version_getrec == 0:
             body = [
                 {"cmd": "SetRec", "action": 0, "param": self._recording_settings["value"]}
             ]
