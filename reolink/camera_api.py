@@ -374,7 +374,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if not self._is_nvr and (self._sw_version_object < ref_sw_version_3_1_0_0_0 or not self.is_ia_enabled):
             # NVR would crash without this
-            body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
+            if not ( self.model.startswith("Reolink Duo")):
+                body.append({"cmd": "GetPush", "action": 1, "param": {"channel": self._channel}})
             body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
