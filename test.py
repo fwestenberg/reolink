@@ -8,7 +8,7 @@ from reolink.subscription_manager import Manager
 
 USER = "Test"
 PASSWORD = "12345678"
-HOST = "192.168.1.23"
+HOST = "192.168.80.43"
 PORT = 80
 
 
@@ -141,6 +141,7 @@ class TestGetData(aiounittest.AsyncTestCase):
         assert self._api.ftp_state is not None
         assert self._api.email_state is not None
         assert self._api.ir_state is not None
+        assert self._api.whiteled_state is not None 
         assert self._api.daynight_state is not None
         assert self._api.recording_state is not None
         assert self._api.audio_state is not None
@@ -244,6 +245,42 @@ class TestGetData(aiounittest.AsyncTestCase):
             assert self._loop.run_until_complete(
                 self._api.set_sensitivity(value=45, preset=0)
             )
+
+            """ White Led State (Spotlight )  """
+            """ required tests """
+            """    turn off , night mode off """
+            """    turn on, night mode off """
+            """    turn off, , night mode on """
+            """    turn on, night mode on , auto mode """
+            """    turn off, night mode on, scheduled """
+            """    turn on,  night mode on, scheduled mode """
+            """    Turn on, NM on, auto Bright = 0 """
+            """    Turn on, NM on, auto Bright = 100 """
+            """    incorrect mode not 0,1,3 """
+            """    incorrect brightness < 0 """
+            """    incorrect brightness > 100 """
+            
+
+            assert self._loop.run_until_complete(self._api.set_whiteled(False,50,0))
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,50,0))
+            assert self._loop.run_until_complete(self._api.set_whiteled(False,50,1))
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,50,1))
+            assert self._loop.run_until_complete(self._api.set_whiteled(False,50,3))
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,50,3))
+            """  so that effect can be seen on spotlight wait 2 seconds between changes """
+            time.sleep(2)
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,0,1))
+            time.sleep(2)
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,100,1))
+            assert self._loop.run_until_complete(self._api.set_whiteled(True,100,2))
+            time.sleep(2)
+            """ now turn off light - does not require an assert """
+            self.loop.run_until_complete(self._api.set_whiteled(False,50,0))
+            """ with incorrect values the routine should return a False """
+            assert not self._loop.run_until_complete(self._api.set_whiteled(True,-10,1))
+            assert not self._loop.run_until_complete(self._api.set_whiteled(True,1000,1))
+
+            
 
     def tearDown(self):
         self._loop.run_until_complete(self._api.logout())
