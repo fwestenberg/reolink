@@ -94,6 +94,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         self._isp_settings = None
         self._ftp_settings = None
+        self._osd_settings = None
         self._push_settings = None
         self._enc_settings = None
         self._ptz_presets_settings = None
@@ -113,7 +114,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._is_ia_enabled = False
 
         self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
-                                                                             connector=aiohttp.TCPConnector(verify_ssl=False))
+                                                                    connector=aiohttp.TCPConnector(ssl=False))
 
         self._api_version_getrec: int = 0
         self._api_version_getpush: int = 0
@@ -219,7 +220,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def whiteled_state(self):
         """Return the spotlight state."""
         return self._whiteled_state
-    
 
     @property
     def daynight_state(self):
@@ -333,7 +333,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._ir_state is not None:
             capabilities.append("irLights")
 
-         if self._whiteled_state is not None:
+        if self._whiteled_state is not None:
             capabilities.append("Spotlight")   
 
         if self._recording_state is not None:
@@ -400,6 +400,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         response = await self.send(body)
         if response is None:
+            print("states none")
             return False
 
         try:
@@ -525,14 +526,17 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
     def get_rtmp_stream_source(self) -> str:
         if self._rtmp_auth_method == DEFAULT_RTMP_AUTH_METHOD:
-            return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&user={self._username}&password={self._password}"
+            return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=\
+                    {self._channel}&stream=0&user={self._username}&password={self._password}"
 
-        return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&token={self._token}"
+        return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=\
+                    {self._channel}&stream=0&token={self._token}"
 
     def get_rtsp_stream_source(self) -> str:
         password = parse.quote(self._password)
         channel = "{:02d}".format(self._channel + 1)
-        return f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/{self._stream_format}Preview_{channel}_{self._stream}"
+        return f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/\
+                {self._stream_format}Preview_{channel}_{self._stream}"
 
     async def get_stream_source(self):
         """Return the stream source url."""
@@ -556,7 +560,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         to be encoded with %20
         """
         # VoDs are only available over rtmp, rtsp is not an option
-        stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename.replace('/', '%20')}?channel={self._channel}&stream=0&token={self._token}"
+        stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename.replace('/', '%20')}?channel=\
+                            {self._channel}&stream=0&token={self._token}"
 
         return stream_source
 
@@ -674,7 +679,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         elif ability == 'supportRecordEnable':
                             self._api_version_getrec = details['ver']
 
-            except:  # pylint: disable=bare-except
+            except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
 
@@ -822,7 +827,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             body = [{"cmd": "SetPushV20", "action": 0, "param": self._push_settings["value"]}]
             body[0]["param"]["Push"]["enable"] = new_value
 
-
         return await self.send_setting(body)
 
     async def set_audio(self, enable):
@@ -869,15 +873,14 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             new_value = "Auto"
         else:
             new_value = "Off"
-
         body = [
-            {"cmd": "SetIrLights", "action": 0, "param": self._ir_settings["value"]}
+            {"cmd": "SetIrLights", "action": 0, "param": {"IrLights": {"channel": 0, "state": "dummy"}}}
         ]
         body[0]["param"]["IrLights"]["state"] = new_value
 
         return await self.send_setting(body)
 
-    async def set_whiteled(self, enable, new_bright, new_mode = None):
+    async def set_whiteled(self, enable, new_bright, new_mode=None):
         """Set the WhiteLed parameter."""
         """ with Reolink Duo GetWhiteLed returns an error state """
         """ SetWhiteLed appears to require 4 parameters """
@@ -893,35 +896,34 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         """   There may be an extra set of parameters with Duo - dont know with others """
         """   LightingSchedule : { EndHour , EndMin, StartHour,StartMin  }    """
         """                                                                            """
-
         if not self._whiteled_settings:
             _LOGGER.error("Actual White Led settings not available")
             return False
-
         if new_mode is None:
-            new_mode = 1    
-
+            new_mode = 1
         if (
             (new_bright < 0 or new_bright > 100)
             or
-            ( not (new_mode == 0 or new_mode == 1 or new_mode == 3))
+            (not (new_mode == 0 or new_mode == 1 or new_mode == 3))
                 ):
             _LOGGER.error("Incorrect parameters supplied to SetWhiteLed \n Bright = %s\n Mode = %s",
-                new_bright, new_mode)    
-            return False 
+                                    new_bright, new_mode)
+            return False
 
         if enable:
-            new_enable = "1"            
+            new_enable = 1
         else:
-            new_enable = "0"
-            
+            new_enable = 0
 
         body = [
-            {"cmd": "SetWhiteLed", 
-            "param": {"state": new_enable, "channel": 0, "mode": new_mode, "bright": new_bright }
+            {'cmd': 'SetWhiteLed',
+                'param': {'WhiteLed':
+                              {'state': new_enable, 'channel': 0, 'mode': new_mode, 'bright': new_bright}
+                          }
             }
         ]
 
+        logging.debug(" whiteled body  ", body,await self.send_setting(body))
         return await self.send_setting(body)    
 
     async def set_daynight(self, value):
@@ -980,7 +982,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 {"cmd": "SetRecV20", "action": 0, "param": self._recording_settings["value"]}
             ]
             body[0]["param"]["Rec"]["enable"] = new_value
-
 
         return await self.send_setting(body)
 
@@ -1184,7 +1185,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if self._aiohttp_session.closed:
             self._aiohttp_session = aiohttp.ClientSession(timeout=self._timeout,
-                                                            connector=aiohttp.TCPConnector(verify_ssl=False))
+                                                            connector=aiohttp.TCPConnector(ssl=False))
 
         if body is None or (body[0]["cmd"] != "Login" and body[0]["cmd"] != "Logout"):
             if not await self.login():
@@ -1209,12 +1210,15 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if b'"detail" : "invalid user"' in json_data or b'"detail" : "login failed"' in json_data or b'detail" : "please login first' in json_data:
+                        if b'"detail" : "invalid user"' in json_data or \
+                                b'"detail" : "login failed"' in json_data \
+                                or b'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
                     if expected_content_type is not None and response.content_type != expected_content_type:
-                        raise InvalidContentTypeError("expected '{}' but received '{}'".format(expected_content_type, response.content_type))
+                        raise InvalidContentTypeError("expected '{}' but received '{}'".format(expected_content_type,
+                                                                                               response.content_type))
 
                     return json_data
             else:
@@ -1232,7 +1236,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         _LOGGER_DATA.debug("send() HTTP Response data: %s", json_data)
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
-                        if 'detail" : "invalid user' in json_data or 'detail" : "login failed' in json_data or 'detail" : "please login first' in json_data:
+                        if 'detail" : "invalid user' in json_data or 'detail" : "login failed' in json_data \
+                                or 'detail" : "please login first' in json_data:
                             self.clear_token()
                             raise CredentialsInvalidError()
 
@@ -1247,7 +1252,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 self._host,
             )
             raise
-        except:  # pylint: disable=bare-except
+        except Exception as e:  # pylint: disable=bare-except
             _LOGGER.debug("Host %s: Unknown exception occurred: %s", self._host, traceback.format_exc())
             raise
         return
