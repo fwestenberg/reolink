@@ -118,6 +118,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         self._api_version_getrec: int = 0
         self._api_version_getpush: int = 0
+        self._api_version_getalarm: int = 0
 
         self.refresh_base_url()
 
@@ -678,6 +679,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                             self._api_version_getpush = details['ver']
                         elif ability == 'supportRecordEnable':
                             self._api_version_getrec = details['ver']
+                        elif  ability == 'scheduleVersion':
+                            self._api_version_getalarm = details['ver']
 
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
@@ -923,7 +926,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             }
         ]
 
-        logging.debug(" whiteled body  ", body,await self.send_setting(body))
+        _LOGGER.debug(" whiteled body  ", body,await self.send_setting(body))
         return await self.send_setting(body)    
 
     async def set_daynight(self, value):
