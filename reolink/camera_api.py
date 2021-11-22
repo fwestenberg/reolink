@@ -927,7 +927,49 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         ]
 
         _LOGGER.debug(" whiteled body  ", body,await self.send_setting(body))
-        return await self.send_setting(body)    
+        return await self.send_setting(body)
+
+    async def set_spotlight_lighting_schedule(self, endhour =6, endmin =0, starthour =18, startmin=0):
+    # stub to handle setting the time period where spotlight (WhiteLed)
+    # will be on when NightMode set and AUTO is off
+    # time is 24 hour
+    #
+
+        if not self._whiteled_settings:
+            _LOGGER.error("Actual White Led settings not available")
+            return False
+
+
+        # sensibility checks
+
+        if (endhour < 0 or endhour > 23
+                or endmin < 0 or endmin > 59
+                or starthour < 0 or starthour > 23
+                or startmin < 0  or startmin > 59
+                or (endhour == starthour and endmin <= startmin)
+                or (not (endhour < 12 and starthour > 16) and (endhour < starthour))
+                ):
+            _LOGGER.error("Parameter Error in setting Lighting schedule\n"
+                          "Start Time %s:%s\nEndTime %s:%s",
+                          starthour,startmin,endhour,endmin)
+            return False
+
+        body = [
+            {"cmd": "SetWhiteLed",
+             "param": {
+                 "WhiteLed": {
+                     "LightingSchedule": {
+                         "EndHour": endhour, "EndMin": endmin, "StartHour": starthour, "StartMin": startmin},"channel": 0, "mode": 3
+                 }
+             }
+             }
+        ]
+
+        if not await self.send_setting(body):
+            return False
+        else:
+            # update the state of the spotlight
+            return await self.get_states()
 
     async def set_daynight(self, value):
         """Set the daynight parameter."""

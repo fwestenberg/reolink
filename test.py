@@ -279,8 +279,21 @@ class TestGetData(aiounittest.AsyncTestCase):
             """ with incorrect values the routine should return a False """
             assert not self._loop.run_until_complete(self._api.set_whiteled(True,-10,1))
             assert not self._loop.run_until_complete(self._api.set_whiteled(True,1000,1))
-
-            
+            """  now tests for setting the schedule for spotlight when night mode non auto"""
+            assert self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(5, 30, 17, 30))
+            assert self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(7, 30, 19, 30))
+            # invalid parameters
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(-1, 0, 18, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(24, 0, 18, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, -2, 18, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 60, 18, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 0, -3, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 0, 24, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 0, 18, -4))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(18, 59, 19, 0))
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(18, 29, 18, 30))
+            #  query should end time equals start time be an error
+            assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 0, 6, 0))
 
     def tearDown(self):
         self._loop.run_until_complete(self._api.logout())
