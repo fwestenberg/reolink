@@ -78,6 +78,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._backlight_state = None
         self._recording_state = None
         self._audio_state = None
+        self._audio_alarm_state = None
         self._rtsp_port = None
         self._rtmp_port = None
         self._onvifport = None
@@ -105,7 +106,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._whiteled_settings = None
         self._recording_settings = None
         self._alarm_settings = None
-
+        self._audio_alarm_settings = None
         self._users = None
         self._local_link = None
         self._ptz_support = False
@@ -223,6 +224,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._whiteled_state
 
     @property
+    def whiteled_schedule(self):
+        """Return the spotlight state."""
+        return self._whiteled_settings["value"]["WhiteLed"]["LightingSchedule"]
+
+    @property
     def daynight_state(self):
         """Return the daynight state."""
         return self._daynight_state
@@ -335,7 +341,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             capabilities.append("irLights")
 
         if self._whiteled_state is not None:
-            capabilities.append("Spotlight")   
+            capabilities.append("spotlight")
+
+        if self._audio_alarm_state is not None:
+            capabilities.append("siren")
 
         if self._recording_state is not None:
             capabilities.append("recording")
@@ -393,6 +402,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
         else:
             body.append({"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}})
+
+        if self._api_version_getalarm == 0:
+            body.append({"cmd": "GetAudioAlarm", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetAudioAlarmV20", "action": 1, "param": {"channel": self._channel}})
 
         if cmd_list is not None:
             for x, line in enumerate(body):
@@ -667,6 +681,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._alarm_settings = data
                     self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
                     self._sensitivity_presets = data["value"]["Alarm"]["sens"]
+
+                elif data["cmd"] == "GetAudioAlarm" or data["cmd"] == "GetAudioAlarmV20":
+                    self._audio_alarm_settings = data
+
 
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
@@ -970,6 +988,50 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             # update the state of the spotlight
             return await self.get_states()
+
+    async def set_spotlight(self, enable):
+        # simply calls set_whiteled with brightness 100, mode 1
+
+        return await self.set_whiteled(enable, 100, 1)
+
+    async def set_audio_alarm(self,enable, *args):
+        # fairly basic only either turns it off or on
+        # called in its simple form by set_siren
+        # future version might have more parameters related to MD, AI etc
+        # this information will be passed in *args or should it be a **kwargs??
+
+        if not self._audio_alarm_settings:
+            _LOGGER.error("Actual AudioAlarm settings not available")
+            return False
+
+        if enable:
+            on_off = 1
+        else:
+            on_off = 0
+
+        if self._api_version_getalarm == 0:
+            body = [
+                    {'cmd': 'SetAudioAlarm',
+                        'param': { "Audio":
+                            {"schedule": {"enable": on_off}}
+                                }
+                    }
+                    ]
+        else:
+            body = [
+                {'cmd': 'SetAudioAlarmV20',
+                 'param': {"Audio":
+                               {"enable": on_off, "channel": 0}
+                           }
+                 }
+            ]
+
+        _LOGGER.debug(" audio_alarm body  ", body, await self.send_setting(body))
+        return await self.send_setting(body)
+
+    async def set_siren(self,enable):
+        # just calls set_audio_alarm with a dummy *args argument
+        return await self.set_audio_alarm(enable,  False)
 
     async def set_daynight(self, value):
         """Set the daynight parameter."""

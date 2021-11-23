@@ -228,6 +228,63 @@ class TestApi(TestCase):
             await api.logout()
             return False
 
+    def test_spotlight(self):
+        self.setup()
+        loop = asyncio.get_event_loop()
+
+        assert self._loop.run_until_complete(self.do_set_spotlight(True))
+        time.sleep(5)
+        assert self._loop.run_until_complete(self.do_set_spotlight(False))
+
+    async def do_set_spotlight(self,enable):
+        api = Api(
+            host=self._host,
+            port=self._port,
+            username=self._user,
+            password=self._password,
+        )
+
+        await api.get_settings()
+        await api.get_states()
+
+        if await api.set_spotlight(enable):
+            await api.logout()
+            return True
+        else:
+            await api.logout()
+            return False
+
+    def test_siren(self):
+        self.setup()
+        loop = asyncio.get_event_loop()
+
+        assert self._loop.run_until_complete(self.do_set_siren(True))
+        time.sleep(10)
+        assert self._loop.run_until_complete(self.do_set_siren(False))
+        time.sleep(10)
+        assert self._loop.run_until_complete(self.do_set_siren(True))
+        time.sleep(10)
+        assert self._loop.run_until_complete(self.do_set_siren(False))
+
+    async def do_set_siren(self,enable):
+        api = Api(
+            host=self._host,
+            port=self._port,
+            username=self._user,
+            password=self._password,
+        )
+
+        await api.get_settings()
+        await api.get_states()
+
+        if await api.set_siren(enable):
+            await api.logout()
+            return True
+        else:
+            await api.logout()
+            return False
+
+
 
     def setup(self):
         self._loop = asyncio.new_event_loop()
