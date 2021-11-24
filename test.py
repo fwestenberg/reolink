@@ -294,6 +294,16 @@ class TestGetData(aiounittest.AsyncTestCase):
             assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(18, 29, 18, 30))
             #  query should end time equals start time be an error
             assert not self._loop.run_until_complete(self._api.set_spotlight_lighting_schedule(6, 0, 6, 0))
+            #
+            # check simplified call
+            assert self._loop.run_until_complete(self._api.set_sotlight(True))
+            assert self._loop.run_until_complete(self._api.set_sotlight(False))
+
+            # test of siren
+            assert self._loop.run_until_complete(self._api.set_siren(True))
+            assert self._loop.run_until_complete(self._api.set_siren(False))
+
+
 
     def tearDown(self):
         self._loop.run_until_complete(self._api.logout())

@@ -18,6 +18,12 @@ print(api.ir_state)
 <span class="hljs-comment"># enable the infrared lights:</span>
 <span class="hljs-keyword">await</span> api.set_ir_lights(<span class="hljs-keyword">True</span>)
 
+<span class="hljs-comment"># enable the spotlight:</span>
+<span class="hljs-keyword">await</span> api.set_spotlight(<span class="hljs-keyword">True</span>)
+
+<span class="hljs-comment"># enable the siron:</span>
+<span class="hljs-keyword">await</span> api.set_siren<span class="hljs-keyword">True</span>)
+
 <span class="hljs-comment"># logout</span>
 <span class="hljs-keyword">await</span> api.logout()
 
