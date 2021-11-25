@@ -249,6 +249,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._audio_state
 
     @property
+    def audio_alarm_state(self):
+        """Return the audio state."""
+        return self._audio_alarm_state
+
+    @property
     def rtmp_port(self):
         """Return the RTMP port."""
         return self._rtmp_port
@@ -661,7 +666,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetWhiteLed":
                     self._whiteled_settings = data
-                    self._whiteled_state = data["value"]["WhiteLed"]["mode"] == "1"        
+                    self._whiteled_state = data["value"]["WhiteLed"]["mode"]
 
                 elif data["cmd"] == "GetRec":
                     self._recording_settings = data
@@ -684,6 +689,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetAudioAlarm" or data["cmd"] == "GetAudioAlarmV20":
                     self._audio_alarm_settings = data
+                    self._audio_alarm_state = data["value"]["Audio"]
 
 
                 elif data["cmd"] == "GetAbility":
