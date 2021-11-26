@@ -74,6 +74,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._email_state = None
         self._ir_state = None
         self._whiteled_state = None
+        self._whiteled_mode = None
         self._daynight_state = None
         self._backlight_state = None
         self._recording_state = None
@@ -221,12 +222,25 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     @property
     def whiteled_state(self):
         """Return the spotlight state."""
-        return self._whiteled_state
+        if self._whiteled_state == 1:
+            return True
+        else:
+            return False
+
+    @property
+    def whiteled_mode(self):
+        """Return the spotlight state."""
+        return self._whiteled_mode
 
     @property
     def whiteled_schedule(self):
         """Return the spotlight state."""
         return self._whiteled_settings["value"]["WhiteLed"]["LightingSchedule"]
+
+    @property
+    def whiteled_settings(self):
+        """Return the spotlight state."""
+        return self._whiteled_settings
 
     @property
     def daynight_state(self):
@@ -249,9 +263,17 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._audio_state
 
     @property
+    def audio_alarm_settings(self):
+        """Return the audio state."""
+        return self._audio_alarm_settings
+
+    @property
     def audio_alarm_state(self):
         """Return the audio state."""
-        return self._audio_alarm_state
+        if self._audio_alarm_state == 1:
+            return True
+        else:
+            return False
 
     @property
     def rtmp_port(self):
@@ -666,7 +688,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetWhiteLed":
                     self._whiteled_settings = data
-                    self._whiteled_state = data["value"]["WhiteLed"]["mode"]
+                    self._whiteled_state = data["value"]["WhiteLed"]["state"]
+                    self._whiteled_mode = data["value"]["WhiteLed"]["mode"]
 
                 elif data["cmd"] == "GetRec":
                     self._recording_settings = data
@@ -689,7 +712,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetAudioAlarm" or data["cmd"] == "GetAudioAlarmV20":
                     self._audio_alarm_settings = data
-                    self._audio_alarm_state = data["value"]["Audio"]
+                    self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
 
                 elif data["cmd"] == "GetAbility":
@@ -951,7 +974,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         ]
 
         _LOGGER.debug(" whiteled body  ", body,await self.send_setting(body))
-        return await self.send_setting(body)
+
+        if not await self.send_setting(body):
+            return False
+        else:
+            return await self.get_states()
+
 
     async def set_spotlight_lighting_schedule(self, endhour =6, endmin =0, starthour =18, startmin=0):
     # stub to handle setting the time period where spotlight (WhiteLed)
@@ -1033,7 +1061,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             ]
 
         _LOGGER.debug(" audio_alarm body  ", body, await self.send_setting(body))
-        return await self.send_setting(body)
+        if not await self.send_setting(body):
+            return False
+        else:
+            return self.get_settings()
 
     async def set_siren(self,enable):
         # just calls set_audio_alarm with a dummy *args argument
