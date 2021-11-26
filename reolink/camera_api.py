@@ -238,6 +238,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         return self._whiteled_settings["value"]["WhiteLed"]["LightingSchedule"]
 
     @property
+    def whiteled_settings(self):
+        """Return the spotlight state."""
+        return self._whiteled_settings
+
+    @property
     def daynight_state(self):
         """Return the daynight state."""
         return self._daynight_state
@@ -256,6 +261,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def audio_state(self):
         """Return the audio state."""
         return self._audio_state
+
+    @property
+    def audio_alarm_settings(self):
+        """Return the audio state."""
+        return self._audio_alarm_settings
 
     @property
     def audio_alarm_state(self):
