@@ -843,6 +843,58 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         """Update the timeout property."""
         self._timeout = aiohttp.ClientTimeout(total=timeout)
 
+    def validate_osd_pos(self, pos):
+        """Helper function for validating an OSD position"""
+        """Returns True, if a valid position is specified"""
+        return (
+            pos == "Upper Left" or pos == "Upper Right"
+            or pos == "Top Center" or pos == "Bottom Center"
+            or pos == "Lower Left" or pos == "Lower Right"
+            )
+
+    async def set_osd(self, namePos=None, datePos=None, enableWaterMark=None):
+        """Set OSD parameters."""
+        """Parameters:"""
+        """namePos (string) specifies the position of the camera name - "Off" disables this OSD"""
+        """datePos (string) specifies the position of the date - "Off" disables this OSD"""
+        """enableWaterMark (boolean) enables/disables the Logo (WaterMark) if supported"""
+        if not self._osd_settings:
+            _LOGGER.error("Actual OSD settings not available")
+            return False
+
+        body = [{"cmd": "SetOsd", "action": 0, "param": self._osd_settings["value"]}]
+
+        if namePos is not None:
+            if "Off" == namePos:
+                body[0]["param"]["Osd"]["osdChannel"]["enable"] = 0
+            else:
+                if not self.validate_osd_pos(namePos):
+                    _LOGGER.error("Invalid OSD position specified: namePos = %s", namePos)
+                    return False
+                body[0]["param"]["Osd"]["osdChannel"]["enable"] = 1
+                body[0]["param"]["Osd"]["osdChannel"]["pos"] = namePos
+
+        if datePos is not None:
+            if "Off" == datePos:
+                body[0]["param"]["Osd"]["osdTime"]["enable"] = 0
+            else:
+                if not self.validate_osd_pos(datePos):
+                    _LOGGER.error("Invalid OSD position specified: datePos = %s", datePos)
+                    return False
+                body[0]["param"]["Osd"]["osdTime"]["enable"] = 1
+                body[0]["param"]["Osd"]["osdTime"]["pos"] = datePos
+
+        if enableWaterMark is not None:
+            if "watermark" in  body[0]["param"]["Osd"]:
+                if enableWaterMark:
+                    body[0]["param"]["Osd"]["watermark"] = 1
+                else:
+                    body[0]["param"]["Osd"]["watermark"] = 0
+            else:
+                _LOGGER.debug("Ignoring enableWaterMark. Not supported by this device")
+
+        return await self.send_setting(body)
+
     async def set_ftp(self, enable):
         """Set the FTP parameter."""
         if not self._ftp_settings:
