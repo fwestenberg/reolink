@@ -94,6 +94,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._sensitivity_presets = dict()
         self._motion_detection_state = None
 
+        self._time_settings = None
+        self._ntp_settings = None
         self._isp_settings = None
         self._ftp_settings = None
         self._osd_settings = None
@@ -470,6 +472,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 "param": {"User": {"userName": self._username}},
             },
             {"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}},  # to capture AI capabilities
+            {"cmd": "GetNtp", "action": 0, "param": {}},
+            {"cmd": "GetTime", "action": 0, "param": {}},
         ]
 
         response = await self.send(body)
@@ -729,6 +733,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                         elif  ability == 'scheduleVersion':
                             self._api_version_getalarm = details['ver']
 
+                elif data["cmd"] == "GetNtp":
+                    self._ntp_settings = data
+
+                elif data["cmd"] == "GetTime":
+                    self._time_settings = data
+
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
@@ -842,6 +852,99 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     async def set_timeout(self, timeout):
         """Update the timeout property."""
         self._timeout = aiohttp.ClientTimeout(total=timeout)
+
+    async def set_time(self, dateFmt=None, hours24=None, tzOffset=None):
+        """Set time parameters."""
+        """Arguments:"""
+        """dateFmt (string) Format of the date in the OSD timestamp"""
+        """hours24 (boolean) True selects 24h format, False selects 12h format"""
+        """tzoffset (int) Timezone offset versus UTC in seconds"""
+
+        """ Always get current time first """
+        ret = await self.get_settings()
+        if not ret:
+            return ret
+        if not self._time_settings:
+            _LOGGER.error("Actual time settings not available")
+            return False
+        body = [{"cmd": "SetTime", "action": 0, "param": self._time_settings["value"]}]
+
+        if dateFmt is not None:
+            if dateFmt == 'DD/MM/YYYY' or dateFmt == 'MM/DD/YYYY' or dateFmt == 'YYYY/MM/DD':
+                body[0]["param"]["Time"]["timeFmt"] = dateFmt
+            else:
+                _LOGGER.error("Invalid dateFmt specified")
+                return False
+
+        if hours24 is not None:
+            if hours24:
+                body[0]["param"]["Time"]["hourFmt"] = 0
+            else:
+                body[0]["param"]["Time"]["hourFmt"] = 1
+
+        if tzOffset is not None:
+            if type(tzOffset) is not int:
+                _LOGGER.error("Invalid time zone offset specified, type is not int")
+                return False
+            if tzOffset < -43200 or tzOffset > 50400:
+                _LOGGER.error("Invalid time zone offset specified")
+                return False
+            body[0]["param"]["Time"]["timeZone"] = tzOffset
+
+        return await self.send_setting(body)
+
+    async def set_ntp(self, enable=None, server=None, port=None, interval=None):
+        """Set NTP parameters."""
+        """Arguments:"""
+        """enable (boolean) Enable synchronization"""
+        """server (string) Name or IP-Address of time server (or pool)"""
+        """port (int) Port number in range of (1..65535)"""
+        """interval (int) Interval of synchronization in minutes in range of (60-65535)"""
+        if not self._ntp_settings:
+            _LOGGER.error("Actual NTP settings not available")
+            return False
+
+        body = [{"cmd": "SetNtp", "action": 0, "param": self._ntp_settings["value"]}]
+
+        if enable is not None:
+            if enable:
+                body[0]["param"]["Ntp"]["enable"] = 1
+            else:
+                body[0]["param"]["Ntp"]["enable"] = 0
+
+        if server is not None:
+            body[0]["param"]["Ntp"]["server"] = server
+
+        if port is not None:
+            if type(port) is not int:
+                _LOGGER.error("Invalid NTP port specified, type is not int")
+                return False
+            if port < 1 or port > 65535:
+                _LOGGER.error("Invalid NTP port with invalid range specified")
+                return False
+            body[0]["param"]["Ntp"]["port"] = port
+
+        if interval is not None:
+            if type(interval) is not int:
+                _LOGGER.error("Invalid NTP interval specified, type is not int")
+                return False
+            if port < 60 or port > 65535:
+                _LOGGER.error("Invalid NTP interval with invalid range specified")
+                return False
+            body[0]["param"]["Ntp"]["interval"] = interval
+
+        return await self.send_setting(body)
+
+    async def sync_ntp(self):
+        """Sync date and time via NTP now."""
+        if not self._ntp_settings:
+            _LOGGER.error("Actual NTP settings not available")
+            return False
+
+        body = [{"cmd": "SetNtp", "action": 0, "param": self._ntp_settings["value"]}]
+        body[0]["param"]["Ntp"]["interval"] = 0
+
+        return await self.send_setting(body)
 
     def validate_osd_pos(self, pos):
         """Helper function for validating an OSD position"""
