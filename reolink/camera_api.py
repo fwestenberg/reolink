@@ -483,13 +483,51 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         try:
             json_data = json.loads(response)
             self.map_json_response(json_data)
-            return True
         except (TypeError, json.JSONDecodeError):
             _LOGGER.debug(
                 "Host %s: Error translating Reolink settings response", self._host
             )
             self.clear_token()
             return False
+
+        # checking API versions (because Reolink dev quality sucks big time we cannot fully trust GetAbility)
+        body = []
+        if self._api_version_getpush == 1:
+            body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
+        if self._api_version_getrec == 1:
+            body.append({"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}})
+        if self._api_version_getalarm == 1:
+            body.append({"cmd": "GetAudioAlarmV20", "action": 1, "param": {"channel": self._channel}})
+
+        response = await self.send(body)
+        try:
+            json_data = json.loads(response)
+        except (TypeError, json.JSONDecodeError):
+            _LOGGER.debug(
+                "Host %s: Error translating Reolink settings response", self._host
+            )
+            self.clear_token()
+            return False
+
+        def check_command_exists(cmd: str):
+            for x in json_data:
+                if x["cmd"] == cmd:
+                    return True
+            return False
+
+        if self._api_version_getpush == 1:
+            if not check_command_exists("GetPushV20"):
+                self._api_version_getpush = 0
+
+        if self._api_version_getrec == 1:
+            if not check_command_exists("GetRecV20"):
+                self._api_version_getrec = 0
+
+        if self._api_version_getalarm == 1:
+            if not check_command_exists("GetAudioAlarmV20"):
+                self._api_version_getalarm = 0
+
+        return True
 
     async def get_motion_state(self):
         """Fetch the motion state."""
@@ -614,11 +652,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     def map_json_response(self, json_data):  # pylint: disable=too-many-branches
         """Map the JSON objects to internal objects and store for later use."""
 
-        push_data = None
-        pushv20_data = None
-        rec_data = None
-        recv20_data = None
-
         for data in json_data:
             try:
                 if data["code"] == 1:  # -->Error, like "ability error"
@@ -666,10 +699,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ftp_state = data["value"]["Ftp"]["schedule"]["enable"] == 1
 
                 elif data["cmd"] == "GetPush":
-                    push_data = data
+                    self._push_settings = data
+                    self._push_state = data["value"]["Push"]["schedule"]["enable"] == 1
 
                 elif data["cmd"] == "GetPushV20":
-                    pushv20_data = data
+                    self._push_settings = data
+                    self._push_state = data["value"]["Push"]["enable"] == 1
 
                 elif data["cmd"] == "GetEnc":
                     self._enc_settings = data
@@ -718,7 +753,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
-
                 elif data["cmd"] == "GetAbility":
                     for ability in data["value"]["Ability"]["abilityChn"]:
                         self._ptz_support = ability["ptzCtrl"]["permit"] != 0
@@ -730,7 +764,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                             self._api_version_getpush = details['ver']
                         elif ability == 'supportRecordEnable':
                             self._api_version_getrec = details['ver']
-                        elif  ability == 'scheduleVersion':
+                        elif ability == 'scheduleVersion':
                             self._api_version_getalarm = details['ver']
 
                 elif data["cmd"] == "GetNtp":
@@ -743,12 +777,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 _LOGGER.error(traceback.format_exc())
                 continue
 
-        if pushv20_data is not None:
-            self._push_settings = pushv20_data
-            self._push_state = pushv20_data["value"]["Push"]["enable"] == 1
-        elif push_data is not None:
-            self._push_settings = push_data
-            self._push_state = push_data["value"]["Push"]["schedule"]["enable"] == 1
 
     async def login(self):
         """Login and store the session ."""
