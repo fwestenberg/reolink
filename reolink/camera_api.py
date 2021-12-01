@@ -610,24 +610,24 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
     def get_rtmp_stream_source(self) -> str:
         if self._rtmp_auth_method == DEFAULT_RTMP_AUTH_METHOD:
-            return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=\
-                    {self._channel}&stream=0&user={self._username}&password={self._password}"
+            return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=" \
+                   f"{self._channel}&stream=0&user={self._username}&password={self._password}"
 
-        return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=\
-                    {self._channel}&stream=0&token={self._token}"
+        return f"rtmp://{self._host}:{self._rtmp_port}/bcs/channel{self._channel}_{self._stream}.bcs?channel=" \
+               f"{self._channel}&stream=0&token={self._token}"
 
     def get_rtsp_stream_source(self) -> str:
         password = parse.quote(self._password)
         channel = "{:02d}".format(self._channel + 1)
-        return f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/\
-                {self._stream_format}Preview_{channel}_{self._stream}"
+        return f"rtsp://{self._username}:{password}@{self._host}:{self._rtsp_port}/" \
+               f"{self._stream_format}Preview_{channel}_{self._stream}"
 
     async def get_stream_source(self):
         """Return the stream source url."""
         if not await self.login():
             return
 
-        if self.protocol == DEFAULT_PROTOCOL:
+        if self.protocol == "rtmp":
             stream_source = self.get_rtmp_stream_source()
         else:
             stream_source = self.get_rtsp_stream_source()
@@ -776,7 +776,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
-
 
     async def login(self):
         """Login and store the session ."""
