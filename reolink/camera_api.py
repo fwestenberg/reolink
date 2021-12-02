@@ -749,7 +749,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._motion_detection_state = data["value"]["Alarm"]["enable"] == 1
                     self._sensitivity_presets = data["value"]["Alarm"]["sens"]
 
-                elif data["cmd"] == "GetAudioAlarm" or data["cmd"] == "GetAudioAlarmV20":
+                elif data["cmd"] == "GetAudioAlarm":
+                    self._audio_alarm_settings = data
+                    self._audio_alarm_state = data["value"]["Audio"]["schedule"]["enable"]
+
+                elif  data["cmd"] == "GetAudioAlarmV20":
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
