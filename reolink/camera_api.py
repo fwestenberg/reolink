@@ -753,7 +753,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["schedule"]["enable"]
 
-                elif  data["cmd"] == "GetAudioAlarmV20":
+                elif data["cmd"] == "GetAudioAlarmV20":
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
@@ -1231,12 +1231,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if self._api_version_getalarm == 0:
             body = [
-                    {'cmd': 'SetAudioAlarm',
-                        'param': { "Audio":
-                            {"schedule": {"enable": on_off}}
-                                }
-                    }
-                    ]
+                {'cmd': 'SetAudioAlarm',
+                 'param': {"Audio":
+                               {"schedule": {"enable": on_off}}
+                           }
+                 }
+            ]
         else:
             body = [
                 {'cmd': 'SetAudioAlarmV20',
