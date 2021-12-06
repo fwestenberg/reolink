@@ -121,6 +121,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                                                                     connector=aiohttp.TCPConnector(ssl=False))
 
         self._api_version_getrec: int = 0
+        self._api_version_getftp: int = 0
         self._api_version_getpush: int = 0
         self._api_version_getalarm: int = 0
 
@@ -427,6 +428,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
 
+        if self._api_version_getftp == 0:
+            body.append({"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetFtpV20", "action": 1, "param": {"channel": self._channel}})
+
         if self._api_version_getrec == 0:
             body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
         else:
@@ -494,6 +500,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         body = []
         if self._api_version_getpush == 1:
             body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
+        if self._api_version_getftp == 1:
+            body.append({"cmd": "GetFtpV20", "action": 1, "param": {"channel": self._channel}})
         if self._api_version_getrec == 1:
             body.append({"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}})
         if self._api_version_getalarm == 1:
@@ -518,6 +526,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._api_version_getpush == 1:
             if not check_command_exists("GetPushV20"):
                 self._api_version_getpush = 0
+
+        if self._api_version_getftp == 1:
+            if not check_command_exists("GetFtpV20"):
+                self._api_version_getftp = 0
 
         if self._api_version_getrec == 1:
             if not check_command_exists("GetRecV20"):
@@ -698,6 +710,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._ftp_settings = data
                     self._ftp_state = data["value"]["Ftp"]["schedule"]["enable"] == 1
 
+                elif data["cmd"] == "GetFtpV20":
+                    self._ftp_settings = data
+                    self._ftp_state = data["value"]["Ftp"]["enable"] == 1
+
                 elif data["cmd"] == "GetPush":
                     self._push_settings = data
                     self._push_state = data["value"]["Push"]["schedule"]["enable"] == 1
@@ -753,7 +769,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["schedule"]["enable"]
 
-                elif  data["cmd"] == "GetAudioAlarmV20":
+                elif data["cmd"] == "GetAudioAlarmV20":
                     self._audio_alarm_settings = data
                     self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
@@ -770,6 +786,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                             self._api_version_getrec = details['ver']
                         elif ability == 'scheduleVersion':
                             self._api_version_getalarm = details['ver']
+                        elif ability == 'supportFtpEnable':
+                            self._api_version_getftp = details['ver']
 
                 elif data["cmd"] == "GetNtp":
                     self._ntp_settings = data
@@ -1029,22 +1047,6 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         return await self.send_setting(body)
 
-    async def set_ftp(self, enable):
-        """Set the FTP parameter."""
-        if not self._ftp_settings:
-            _LOGGER.error("Actual FTP settings not available")
-            return False
-
-        if enable:
-            new_value = 1
-        else:
-            new_value = 0
-
-        body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
-        body[0]["param"]["Ftp"]["schedule"]["enable"] = new_value
-
-        return await self.send_setting(body)
-
     async def set_push(self, enable: bool):
         """Set the PUSH (notifications) parameter."""
         if not self._push_settings:
@@ -1062,6 +1064,26 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             body = [{"cmd": "SetPushV20", "action": 0, "param": self._push_settings["value"]}]
             body[0]["param"]["Push"]["enable"] = new_value
+
+        return await self.send_setting(body)
+
+    async def set_ftp(self, enable: bool):
+        """Set the FTP (notifications) parameter."""
+        if not self._ftp_settings:
+            _LOGGER.error("Actual FTP settings not available")
+            return False
+
+        if enable:
+            new_value = 1
+        else:
+            new_value = 0
+
+        if self._api_version_getftp == 0:
+            body = [{"cmd": "SetFtp", "action": 0, "param": self._ftp_settings["value"]}]
+            body[0]["param"]["Ftp"]["schedule"]["enable"] = new_value
+        else:
+            body = [{"cmd": "SetFtpV20", "action": 0, "param": self._ftp_settings["value"]}]
+            body[0]["param"]["Ftp"]["enable"] = new_value
 
         return await self.send_setting(body)
 
@@ -1231,12 +1253,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         if self._api_version_getalarm == 0:
             body = [
-                    {'cmd': 'SetAudioAlarm',
-                        'param': { "Audio":
-                            {"schedule": {"enable": on_off}}
-                                }
-                    }
-                    ]
+                {'cmd': 'SetAudioAlarm',
+                 'param': {"Audio":
+                               {"schedule": {"enable": on_off}}
+                           }
+                 }
+            ]
         else:
             body = [
                 {'cmd': 'SetAudioAlarmV20',
