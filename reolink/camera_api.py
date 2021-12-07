@@ -1275,8 +1275,35 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             return self.get_settings()
 
     async def set_siren(self,enable):
-        # just calls set_audio_alarm with a dummy *args argument
-        return await self.set_audio_alarm(enable,  False)
+        # Uses API AudioAlarmPlay with manual switch
+        # uncertain if there may be a glitch - dont know if there is API I have yet to find
+        # which sets AudioLevel
+        if enable:
+            man_switch = 1
+        else:
+            man_switch = 0
+
+        # this is overkill but to get state set right necessary to call set_audio_alarm
+
+        if not await self.set_audio_alarm(enable):
+            return False
+
+        body = [
+            {'cmd': 'AudioAlarmPlay',
+              'action': 0,
+             'param': {
+                 "alarm_mode": 'manul',
+                 'manual_switch': man_switch,
+                 'times': 2,
+                 "channel": 0
+                       }
+             }
+        ]
+
+        if not await self.send_setting(body):
+            return False
+        else:
+            return self.get_settings()
 
     async def set_daynight(self, value):
         """Set the daynight parameter."""
