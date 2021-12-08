@@ -1232,9 +1232,15 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             return await self.get_states()
 
     async def set_spotlight(self, enable):
-        # simply calls set_whiteled with brightness 100, mode 1
+        # simply calls set_whiteled with brightness 100, mode 3
+        # after setting lightning schedule to on all the time 0000 to 2359
 
-        return await self.set_whiteled(enable, 100, 1)
+        if enable:
+            if not await self.set_spotlight_lighting_schedule(23, 59, 0, 0):
+                return False
+            return await self.set_whiteled(enable, 100, 3)
+        else:
+            return await self.set_whiteled(enable, 100, 1)
 
     async def set_audio_alarm(self,enable, *args):
         # fairly basic only either turns it off or on
@@ -1275,8 +1281,35 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             return self.get_settings()
 
     async def set_siren(self,enable):
-        # just calls set_audio_alarm with a dummy *args argument
-        return await self.set_audio_alarm(enable,  False)
+        # Uses API AudioAlarmPlay with manual switch
+        # uncertain if there may be a glitch - dont know if there is API I have yet to find
+        # which sets AudioLevel
+        if enable:
+            man_switch = 1
+        else:
+            man_switch = 0
+
+        # this is overkill but to get state set right necessary to call set_audio_alarm
+
+        if not await self.set_audio_alarm(enable):
+            return False
+
+        body = [
+            {'cmd': 'AudioAlarmPlay',
+              'action': 0,
+             'param': {
+                 "alarm_mode": 'manul',
+                 'manual_switch': man_switch,
+                 'times': 2,
+                 "channel": 0
+                       }
+             }
+        ]
+
+        if not await self.send_setting(body):
+            return False
+        else:
+            return self.get_settings()
 
     async def set_daynight(self, value):
         """Set the daynight parameter."""
