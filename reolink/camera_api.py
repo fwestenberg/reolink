@@ -1232,9 +1232,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             return await self.get_states()
 
     async def set_spotlight(self, enable):
-        # simply calls set_whiteled with brightness 100, mode 1
-
-        return await self.set_whiteled(enable, 100, 1)
+        # simply calls set_whiteled with brightness 100, mode 3
+        # after setting lightning schedule to on all the time 0000 to 2359
+        if not await self.set_spotlight_lighting_schedule(23,59,0,0):
+            return False         
+        return await self.set_whiteled(enable, 100, 3)
 
     async def set_audio_alarm(self,enable, *args):
         # fairly basic only either turns it off or on
