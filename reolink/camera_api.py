@@ -656,8 +656,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         to be encoded with %20
         """
         # VoDs are only available over rtmp, rtsp is not an option
-        stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename.replace('/', '%20')}?channel=\
-                            {self._channel}&stream=0&token={self._token}"
+        stream_source = f"rtmp://{self._host}:{self._rtmp_port}/vod/{filename.replace('/', '%20')}?" \
+                        f"channel={self._channel}&stream=0&token={self._token}"
 
         return stream_source
 
