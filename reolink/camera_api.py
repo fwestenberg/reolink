@@ -94,6 +94,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._sensitivity_presets = dict()
         self._motion_detection_state = None
 
+        self._auto_focus_settings = None
         self._time_settings = None
         self._ntp_settings = None
         self._isp_settings = None
@@ -480,6 +481,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             {"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}},  # to capture AI capabilities
             {"cmd": "GetNtp", "action": 0, "param": {}},
             {"cmd": "GetTime", "action": 0, "param": {}},
+            {"cmd": "GetAutoFocus", "action": 0, "param": {"channel": self._channel}},
         ]
 
         response = await self.send(body)
@@ -795,6 +797,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetTime":
                     self._time_settings = data
 
+                elif data["cmd"] == "GetAutoFocus":
+                    self._auto_focus_settings = data
+
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
@@ -992,6 +997,24 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         body = [{"cmd": "SetNtp", "action": 0, "param": self._ntp_settings["value"]}]
         body[0]["param"]["Ntp"]["interval"] = 0
+
+        return await self.send_setting(body)
+
+    async def set_autofocus(self, enable: bool):
+        """Enable/Disable AutoFocus."""
+        """Parameters:"""
+        """enable (boolean) enables/disables AutoFocus if supported"""
+        if not self._auto_focus_settings:
+            _LOGGER.error("AutoFocus not available")
+            return False
+
+        if enable:
+            new_disable = 0
+        else:
+            new_disable = 1
+
+        body = [{"cmd": "SetAutoFocus", "action": 0, "param": self._auto_focus_settings["value"]}]
+        body[0]["param"]["AutoFocus"]["disable"] = new_disable
 
         return await self.send_setting(body)
 
