@@ -94,6 +94,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._sensitivity_presets = dict()
         self._motion_detection_state = None
 
+        self._zoom_focus_settings = None
         self._auto_focus_settings = None
         self._time_settings = None
         self._ntp_settings = None
@@ -482,6 +483,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             {"cmd": "GetNtp", "action": 0, "param": {}},
             {"cmd": "GetTime", "action": 0, "param": {}},
             {"cmd": "GetAutoFocus", "action": 0, "param": {"channel": self._channel}},
+            {"cmd": "GetZoomFocus", "action": 0, "param": {"channel": self._channel}},
         ]
 
         response = await self.send(body)
@@ -800,6 +802,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetAutoFocus":
                     self._auto_focus_settings = data
 
+                elif data["cmd"] == "GetZoomFocus":
+                    self._zoom_focus_settings = data
+
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
                 continue
@@ -1015,6 +1020,46 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         body = [{"cmd": "SetAutoFocus", "action": 0, "param": self._auto_focus_settings["value"]}]
         body[0]["param"]["AutoFocus"]["disable"] = new_disable
+
+        return await self.send_setting(body)
+
+    def get_focus(self):
+        """Get absolute focus value."""
+        if not self._zoom_focus_settings:
+            _LOGGER.error("ZoomFocus settings not available")
+            return False
+
+        return self._zoom_focus_settings["value"]["ZoomFocus"]["focus"]["pos"]
+
+    async def set_focus(self, focus):
+        """Set absolute focus value."""
+        """Parameters:"""
+        """focus (int) 0..223"""
+        if not focus in range(0, 223):
+            _LOGGER.error("focus value not in range 0..223")
+            return False
+
+        body = [{"cmd": "StartZoomFocus", "action": 0, "param": {"ZoomFocus": {"channel": self._channel, "op": "FocusPos", "pos": focus}}}]
+
+        return await self.send_setting(body)
+
+    def get_zoom(self):
+        """Get absolute zoom value."""
+        if not self._zoom_focus_settings:
+            _LOGGER.error("ZoomFocus settings not available")
+            return False
+
+        return self._zoom_focus_settings["value"]["ZoomFocus"]["zoom"]["pos"]
+
+    async def set_zoom(self, zoom):
+        """Set absolute zoom value."""
+        """Parameters:"""
+        """zoom (int) 0..33"""
+        if not zoom in range(0, 33):
+            _LOGGER.error("zoom value not in range 0..33")
+            return False
+
+        body = [{"cmd": "StartZoomFocus", "action": 0, "param": {"ZoomFocus": {"channel": self._channel, "op": "ZoomPos", "pos": zoom}}}]
 
         return await self.send_setting(body)
 
