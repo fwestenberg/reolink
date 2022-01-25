@@ -4,6 +4,11 @@ class ReolinkError(Exception):
     pass
 
 
+class ApiError(ReolinkError):
+    """Raised when API returns an error code"""
+    pass
+
+
 class InvalidContentTypeError(ReolinkError):
     """Raised when Snapshot command returns an invalid JPEG file"""
     pass

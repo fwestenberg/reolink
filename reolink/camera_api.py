@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from . import typings
 from .software_version import SoftwareVersion
-from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError
+from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError, ApiError
 import traceback
 import re
 
@@ -1654,15 +1654,20 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
                     _LOGGER.debug("%s/%s::send() HTTP Request params =%s", self.name, self._host,
                                   str(param).replace(self._password, "<password>"))
-                    json_data = await response.read()
+
                     _LOGGER.debug("%s/%s::send() HTTP Response status=%s content-type=(%s)", self.name, self._host,
                                   response.status, response.content_type)
 
+                    json_data = await response.read()
                     if param.get("cmd") == "Snap":
                         _LOGGER_DATA.debug("%s/%s::send() HTTP Response data scrapped because it's too large",
                                            self.name, self._host)
                     else:
                         _LOGGER_DATA.debug("%s/%s::send() HTTP Response data: %s", self.name, self._host, json_data)
+
+                    if response.status >= 400:
+                        raise ApiError(
+                            "API returned HTTP status ERROR code {}/{}".format(response.status, response.reason))
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
                         if b'"detail" : "invalid user"' in json_data or \
@@ -1684,14 +1689,19 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                                   str(param).replace(self._password, "<password>"))
                     _LOGGER.debug("%s/%s::send() HTTP Request body =%s", self.name, self._host,
                                   str(body).replace(self._password, "<password>"))
-                    json_data = await response.text()
                     _LOGGER.debug("%s/%s::send() HTTP Response status=%s content-type=(%s)", self.name, self._host,
                                   response.status, response.content_type)
+
+                    json_data = await response.text()
                     if param.get("cmd") == "Search" and len(json_data) > 500:
                         _LOGGER_DATA.debug("%s/%s::send() HTTP Response data scrapped because it's too large",
                                            self.name, self._host)
                     else:
                         _LOGGER_DATA.debug("%s/%s::send() HTTP Response data: %s", self.name, self._host, json_data)
+
+                    if response.status >= 400:
+                        raise ApiError(
+                            "API returned HTTP status ERROR code {}/{}".format(response.status, response.reason))
 
                     if len(json_data) < 500 and response.content_type == 'text/html':
                         if 'detail" : "invalid user' in json_data or 'detail" : "login failed' in json_data \
