@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='reolink',
     packages=['reolink'],
-    version='0.0.60',
+    version='0.0.61',
     license='MIT',
     description='Reolink camera package',
     author='fwestenberg',
