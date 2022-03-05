@@ -48,6 +48,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         timeout=DEFAULT_TIMEOUT,
         stream_format=DEFAULT_STREAM_FORMAT,
         rtmp_auth_method=DEFAULT_RTMP_AUTH_METHOD,
+        aiohttp_get_session_callback=None
     ):
         """Initialize the API class."""
         self._url = ""
@@ -119,8 +120,14 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._is_nvr = False
         self._is_ia_enabled = False
 
-        self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
+        if aiohttp_get_session_callback is not None:
+            self._aiohttp_get_session_callback = aiohttp_get_session_callback
+            self._aiohttp_session = None
+        else:
+            self._aiohttp_session: aiohttp.ClientSession = aiohttp.ClientSession(timeout=self._timeout,
                                                                     connector=aiohttp.TCPConnector(ssl=False))
+            self._aiohttp_get_session_callback = None
+
 
         self._api_version_getrec: int = 0
         self._api_version_getftp: int = 0
@@ -890,7 +897,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
         await self.send(body, param)
         self.clear_token()
-        await self._aiohttp_session.close()
+        if self._aiohttp_session is not None:
+            await self._aiohttp_session.close()
 
     async def set_channel(self, channel):
         """Update the channel property."""
@@ -1636,7 +1644,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     async def send(self, body, param=None, expected_content_type: Optional[str] = None):
         """Generic send method."""
 
-        if self._aiohttp_session.closed:
+        if self._aiohttp_session is not None and self._aiohttp_session.closed:
             self._aiohttp_session = aiohttp.ClientSession(timeout=self._timeout,
                                                             connector=aiohttp.TCPConnector(ssl=False))
 
@@ -1650,8 +1658,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             param["token"] = self._token
 
         try:
+            session = self._aiohttp_session
+            if session is None:
+                session = self._aiohttp_get_session_callback()
             if body is None:
-                async with self._aiohttp_session.get(url=self._url, params=param, allow_redirects=False) as response:
+                async with session.get(url=self._url, params=param, allow_redirects=False) as response:
                     _LOGGER.debug("%s/%s::send() HTTP Request params =%s", self.name, self._host,
                                   str(param).replace(self._password, "<password>"))
 
@@ -1682,7 +1693,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                     return json_data
             else:
-                async with self._aiohttp_session.post(
+                async with session.post(
                         url=self._url, json=body, params=param, allow_redirects=False
                 ) as response:
                     _LOGGER.debug("%s/%s::send() HTTP Request params =%s", self.name, self._host,
