@@ -7,9 +7,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from . import typings
 from .software_version import SoftwareVersion
-from .exceptions import CredentialsInvalidError, SnapshotIsNotValidFileTypeError, InvalidContentTypeError, ApiError
+from .exceptions import CredentialsInvalidError, InvalidContentTypeError, ApiError
 import traceback
-import re
 
 import asyncio
 import aiohttp
