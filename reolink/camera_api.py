@@ -880,23 +880,24 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         _LOGGER.debug("Failed to login at IP %s.", self._host)
         return False
 
-    async def is_admin(self):
+    def is_admin(self):
         """Check if the user has admin authorisation."""
-        for user in self._users:
-            if user["userName"] == self._username:
-                if user["level"] == "admin":
-                    _LOGGER.debug(
-                        "User %s has authorisation level %s",
-                        self._username,
-                        user["level"],
-                    )
-                else:
-                    _LOGGER.warning(
-                        """User %s has authorisation level %s. Only admin users can change
-                        camera settings! Switches will not work.""",
-                        self._username,
-                        user["level"],
-                    )
+        user = [u for u in self._users if u["userName"] == self._username][0]
+        if user["level"] == "admin":
+            _LOGGER.debug(
+                "User %s has authorisation level %s",
+                self._username,
+                user["level"],
+            )
+            return True
+        else:
+            _LOGGER.warning(
+                """User %s has authorisation level %s. Only admin users can change
+                camera settings! Switches will not work.""",
+                self._username,
+                user["level"],
+            )
+            return False
 
     async def logout(self):
         """Logout from the API."""
