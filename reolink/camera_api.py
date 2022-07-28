@@ -114,7 +114,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._audio_alarm_settings = None
         self._users = None
         self._local_link = None
-        self._ptz_support = False
+        self._abilities = None
 
         self._is_nvr = False
         self._is_ia_enabled = False
@@ -339,7 +339,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
     @property
     def ptz_support(self):
         """Return if PTZ is supported."""
-        return self._ptz_support
+        return self.has_feature("ptzCtrl")
 
     @property
     def motion_detection_state(self):
@@ -402,7 +402,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._audio_state is not None:
             capabilities.append("audio")
 
-        if self._ptz_support:
+        if self.ptz_support:
             capabilities.append("ptzControl")
 
         if len(self._ptz_presets) != 0:
@@ -793,12 +793,9 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._audio_alarm_state = data["value"]["Audio"]["enable"]
 
                 elif data["cmd"] == "GetAbility":
-                    for ability in data["value"]["Ability"]["abilityChn"]:
-                        self._ptz_support = ability["ptzCtrl"]["permit"] != 0
+                    self._abilities: Dict[str, Any] = data["value"]["Ability"]
 
-                    abilities: Dict[str, Any] = data["value"]["Ability"]
-
-                    for ability, details in abilities.items():
+                    for ability, details in self._abilities.items():
                         if ability == 'push':
                             self._api_version_getpush = details['ver']
                         elif ability == 'supportRecordEnable':
@@ -898,6 +895,33 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 user["level"],
             )
             return False
+
+    def _get_feature(self, name):
+        if (
+            isinstance(self._channel, int)
+            and "abilityChn" in self._abilities
+            and len(self._abilities["abilityChn"]) > self._channel
+        ):
+            return self._abilities["abilityChn"][self._channel].get(name)
+        return self._abilities.get(name)
+
+    def has_feature(self, feature):
+        f = self._get_feature(feature)
+        return f is not None and bool(f["ver"])
+
+    def _has_permission(self, feature, right):
+        if self.has_feature(feature):
+            return bool(self._get_feature(feature)["permit"] & right)
+        return False
+
+    def has_read_permission(self, feature):
+        return self._has_permission(feature, 4)
+
+    def has_write_permission(self, feature):
+        return self._has_permission(feature, 2)
+
+    def has_execute_permission(self, feature):
+        return self._has_permission(feature, 1)
 
     async def logout(self):
         """Logout from the API."""
