@@ -58,3 +58,24 @@ if (sman.renewTimer <= 100):
 # Unsubscribe
 await sman.unsubscribe()
 ````
+
+### Example
+
+This is an example of the usage of the API. In this case we want to retrive and print the Mac Address of the NVR.
+````
+from reolink.camera_api import Api
+import asyncio
+
+async def print_mac_address():
+    # initialize the api
+    api = Api('192.168.1.109', 80, 'admin', 'NadaRisto2')
+    # get settings
+    await api.get_settings()
+    # print mac address
+    print(api._mac_address)
+    # close the api
+    await api.logout()
+
+if __name__ == "__main__":
+    asyncio.run(print_mac_address())
+````
