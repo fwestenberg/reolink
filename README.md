@@ -1,41 +1,60 @@
-<h1 class="code-line" data-line-start=0 data-line-end=1 ><a id="Reolink_Python_package_0"></a>Reolink Python package</h1>
-<p class="has-line-data" data-line-start="2" data-line-end="3">This is a package implementing the Reolink IP camera API. Also it’s providing a way to subscribe to Reolink events, so real-time events can be received on a webhook.</p>
-<h3 class="code-line" data-line-start=4 data-line-end=5 ><a id="Usage_4"></a>Usage</h3>
-<pre><code class="has-line-data" data-line-start="7" data-line-end="39" class="language-python">api = camera_api.Api(<span class="hljs-string">'192.168.1.10'</span>, <span class="hljs-number">80</span>, <span class="hljs-string">'user'</span>, <span class="hljs-string">'mypassword'</span>)
+Reolink Python package
+======================
 
-<span class="hljs-comment"># get settings, like ports etc.:</span>
-<span class="hljs-keyword">await</span> api.get_settings()
+### Description
 
-<span class="hljs-comment"># Store the subscribe port</span>
+This is a package implementing the Reolink IP camera API. Also it’s providing a way to subscribe to Reolink events, so real-time events can be received on a webhook.
+
+### Prerequisites
+
+- python3
+
+### Installation
+
+````
+git clone https://github.com/fwestenberg/reolink
+cd reolink/
+pip3 install .
+````
+
+### Usage
+
+````
+api = camera_api.Api('192.168.1.10', 80, 'user', 'mypassword')
+
+# get settings, like ports etc.:
+await api.get_settings()
+
+# Store the subscribe port
 subscribe_port =  api.onvif_port
 
-<span class="hljs-comment"># get the states:</span>
-<span class="hljs-keyword">await</span> api.get_states()
+# get the states:
+await api.get_states()
 
-<span class="hljs-comment"># print some state value:</span>
+# print some state value:
 print(api.ir_state)
 
-<span class="hljs-comment"># enable the infrared lights:</span>
-<span class="hljs-keyword">await</span> api.set_ir_lights(<span class="hljs-keyword">True</span>)
+# enable the infrared lights:
+await api.set_ir_lights(True)
 
-<span class="hljs-comment"># enable the spotlight:</span>
-<span class="hljs-keyword">await</span> api.set_spotlight(<span class="hljs-keyword">True</span>)
+# enable the spotlight:
+await api.set_spotlight(True)
 
-<span class="hljs-comment"># enable the siron:</span>
-<span class="hljs-keyword">await</span> api.set_siren<span class="hljs-keyword">True</span>)
+# enable the siron:
+await api.set_sirenTrue)
 
-<span class="hljs-comment"># logout</span>
-<span class="hljs-keyword">await</span> api.logout()
+# logout
+await api.logout()
 
-<span class="hljs-comment"># Now subscribe to events, suppose our webhook url is http://192.168.1.11/webhook123</span>
+# Now subscribe to events, suppose our webhook url is http://192.168.1.11/webhook123
 
-sman = subscription_manager.Manager(<span class="hljs-string">'192.168.1.10'</span>, subscribePort, <span class="hljs-string">' user'</span>, <span class="hljs-string">'mypassword'</span>)
-<span class="hljs-keyword">await</span> sman.subscribe(<span class="hljs-string">'http://192.168.1.11/webhook123'</span>)
+sman = subscription_manager.Manager('192.168.1.10', subscribePort, ' user', 'mypassword')
+await sman.subscribe('http://192.168.1.11/webhook123')
 
-<span class="hljs-comment"># After some minutes check the renew timer (keep the eventing alive):</span>
-<span class="hljs-keyword">if</span> (sman.renewTimer &lt;= <span class="hljs-number">100</span>):
-    <span class="hljs-keyword">await</span> sman.renew()
+# After some minutes check the renew timer (keep the eventing alive):
+if (sman.renewTimer <= 100):
+    await sman.renew()
 
-<span class="hljs-comment"># Unsubscribe</span>
-<span class="hljs-keyword">await</span> sman.unsubscribe()
-</code></pre>
+# Unsubscribe
+await sman.unsubscribe()
+````
