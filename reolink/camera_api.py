@@ -606,16 +606,25 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 {"cmd": "GetAiState", "action": 0, "param": {"channel": self._channel}}]
 
         response = await self.send(body)
-        json_data = json.loads(response)
+        if response is None:
+            return False
 
-        if json_data is None:
-            _LOGGER.error(
-                "Unable to get All Motion States at IP %s", self._host
-            )
+        try:
+            json_data = json.loads(response)
+
+            if json_data is None:
+                _LOGGER.error(
+                    "Unable to get All Motion States at IP %s", self._host
+                )
+                self._motion_state = False
+                return self._motion_state
+
+            self.map_json_response(json_data)
+        except (TypeError, json.JSONDecodeError):
+            self.clear_token()
             self._motion_state = False
-            return self._motion_state
 
-        self.map_json_response(json_data)
+        return self._motion_state
 
     async def get_still_image(self):
         """Get the still image."""
