@@ -68,7 +68,7 @@ import asyncio
 
 async def print_mac_address():
     # initialize the api
-    api = Api('192.168.1.109', 80, 'admin', 'NadaRisto2')
+    api = Api('192.168.1.109', 80, 'admin', 'admin1234')
     # get settings
     await api.get_settings()
     # print mac address
