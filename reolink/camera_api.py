@@ -132,6 +132,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._api_version_getrec: int = 0
         self._api_version_getftp: int = 0
         self._api_version_getpush: int = 0
+        self._api_version_getemail: int = 1
         self._api_version_getalarm: int = 0
 
         self.refresh_base_url()
@@ -442,6 +443,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             body.append({"cmd": "GetFtpV20", "action": 1, "param": {"channel": self._channel}})
 
+        if self._api_version_getemail == 0:
+            body.append({"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetEmailV20", "action": 1, "param": {"channel": self._channel}})
+
         if self._api_version_getrec == 0:
             body.append({"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}})
         else:
@@ -511,6 +517,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         body = []
         if self._api_version_getpush == 1:
             body.append({"cmd": "GetPushV20", "action": 1, "param": {"channel": self._channel}})
+        if self._api_version_getemail == 1:
+            body.append({"cmd": "GetEmailV20", "action": 1, "param": {"channel": self._channel}})
         if self._api_version_getftp == 1:
             body.append({"cmd": "GetFtpV20", "action": 1, "param": {"channel": self._channel}})
         if self._api_version_getrec == 1:
@@ -537,6 +545,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._api_version_getpush == 1:
             if not check_command_exists("GetPushV20"):
                 self._api_version_getpush = 0
+
+        if self._api_version_getemail == 1:
+            if not check_command_exists("GetEmailV20"):
+                self._api_version_getemail = 0
 
         if self._api_version_getftp == 1:
             if not check_command_exists("GetFtpV20"):
@@ -750,6 +762,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                     self._email_settings = data
                     self._email_state = (
                         data["value"]["Email"]["schedule"]["enable"] == 1
+                    )
+
+                elif data["cmd"] == "GetEmailV20":
+                    self._email_settings = data
+                    self._email_state = (
+                        data["value"]["Email"]["enable"] == 1
                     )
 
                 elif data["cmd"] == "GetIsp":
@@ -1199,10 +1217,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        body = [
-            {"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}
-        ]
-        body[0]["param"]["Email"]["schedule"]["enable"] = new_value
+        if self._api_version_getemail == 0:
+            body = [{"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}]
+            body[0]["param"]["Email"]["schedule"]["enable"] = new_value
+        else:
+            body = [{"cmd": "SetEmailV20", "action": 0, "param": self._email_settings["value"]}]
+            body[0]["param"]["Email"]["enable"] = new_value
 
         return await self.send_setting(body)
 
