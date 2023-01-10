@@ -132,6 +132,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         self._api_version_getrec: int = 0
         self._api_version_getftp: int = 0
         self._api_version_getpush: int = 0
+        self._api_version_getemail: int = 1
         self._api_version_getalarm: int = 0
 
         self.refresh_base_url()
@@ -452,6 +453,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             body.append({"cmd": "GetAudioAlarmV20", "action": 1, "param": {"channel": self._channel}})
 
+        if self._api_version_getemail == 0:
+            body.append({"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}})
+        else:
+            body.append({"cmd": "GetEmailV20", "action": 1, "param": {"channel": self._channel}})
+
         if cmd_list is not None:
             for x, line in enumerate(body):
                 if line["cmd"] not in cmd_list:
@@ -517,6 +523,8 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             body.append({"cmd": "GetRecV20", "action": 1, "param": {"channel": self._channel}})
         if self._api_version_getalarm == 1:
             body.append({"cmd": "GetAudioAlarmV20", "action": 1, "param": {"channel": self._channel}})
+        if self._api_version_getemail == 1:
+            body.append({"cmd": "GetEmailV20", "action": 1, "param": {"channel": self._channel}})
 
         response = await self.send(body)
         try:
@@ -549,6 +557,10 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         if self._api_version_getalarm == 1:
             if not check_command_exists("GetAudioAlarmV20"):
                 self._api_version_getalarm = 0
+
+        if self._api_version_getemail == 1:
+            if not check_command_exists("GetEmailV20"):
+                self._api_version_getemail = 0
 
         return True
 
@@ -769,9 +781,11 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
                 elif data["cmd"] == "GetRec":
                     self._recording_settings = data
                     self._recording_state = (data["value"]["Rec"]["schedule"]["enable"] == 1)
+
                 elif data["cmd"] == "GetRecV20":
                     self._recording_settings = data
                     self._recording_state = (data["value"]["Rec"]["enable"] == 1)
+
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptz_presets_settings = data
                     for preset in data["value"]["PtzPreset"]:
@@ -820,6 +834,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
 
                 elif data["cmd"] == "GetZoomFocus":
                     self._zoom_focus_settings = data
+
+                elif data["cmd"] == "GetEmailV20":
+                    self._email_settings = data
+                    self._email_state = (
+                        data["value"]["Email"]["enable"] == 1
+                    )
 
             except Exception as e:  # pylint: disable=bare-except
                 _LOGGER.error(traceback.format_exc())
@@ -1199,10 +1219,12 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
         else:
             new_value = 0
 
-        body = [
-            {"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}
-        ]
-        body[0]["param"]["Email"]["schedule"]["enable"] = new_value
+        if self._api_version_getemail == 0:
+            body = [{"cmd": "SetEmail", "action": 0, "param": self._email_settings["value"]}]
+            body[0]["param"]["Email"]["schedule"]["enable"] = new_value
+        else:
+            body = [{"cmd": "SetEmailV20", "action": 0, "param": self._email_settings["value"]}]
+            body[0]["param"]["Email"]["enable"] = new_value
 
         return await self.send_setting(body)
 
