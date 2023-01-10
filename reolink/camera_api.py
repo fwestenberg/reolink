@@ -868,7 +868,7 @@ class Api:  # pylint: disable=too-many-instance-attributes disable=too-many-publ
             if json_data[0]["code"] == 0:
                 self._token = json_data[0]["value"]["Token"]["name"]
                 lease_time = json_data[0]["value"]["Token"]["leaseTime"]
-                self._lease_time = datetime.now() + timedelta(seconds=lease_time)
+                self._lease_time = datetime.now() + timedelta(seconds=lease_time-60)  # removed 60 seconds to be sure
 
                 _LOGGER.debug(
                     "Reolink camera logged in at IP %s. Leasetime %s, token %s",
